@@ -9,6 +9,24 @@
       🗺️ Click anywhere on the map to add Waypoint {{drawingWaypoints.length + 1}}
     </div>
 
+    <!-- Real-time Coordinates HUD Overlay -->
+    <div class="glass-panel" 
+         style="position: absolute; top: 12px; right: 12px; padding: 6px 12px; border-radius: 8px; font-family: var(--font-mono); font-size: 11px; z-index: 30; pointer-events: none; border-color: rgba(6, 182, 212, 0.4); display: flex; flex-direction: column; gap: 2px;">
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span style="color: var(--color-cyan); font-weight: bold;">COORD SYSTEM:</span>
+        <span style="color: #ffffff; font-weight: 500;">{{ mapMetadata?.georeferenced ? 'GEOTIFF' : 'WGS84 FALLBACK' }}</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span style="color: var(--color-cyan); font-weight: bold;">CURSOR:</span>
+        <span *ngIf="cursorLat !== null && cursorLon !== null" style="color: var(--color-success); font-weight: bold;">
+          {{ formatGeoCoords(cursorLat, cursorLon) }}
+        </span>
+        <span *ngIf="cursorLat === null || cursorLon === null" style="color: var(--color-text-muted);">
+          HOVER MAP
+        </span>
+      </div>
+    </div>
+
     <!-- Hover Tooltips -->
     <div *ngIf="hoveredSymbol" class="tooltip-card" [style.left.px]="tooltipX" [style.top.px]="tooltipY">
       <h4 style="font-weight:600; margin-bottom:4px; color:var(--color-primary);">{{hoveredSymbol.planName}}</h4>
@@ -18,8 +36,18 @@
         <span *ngIf="!hoveredSymbol.isFinished && !hoveredSymbol.isOutofFuel" style="color:var(--color-warning);">In Transit</span>
       </div>
       <div>Distance Covered: <span style="font-family:var(--font-mono);">{{hoveredSymbol.distanceTraveled}} px</span></div>
+      <div style="margin-top:2px;">GPS: <span style="font-family:var(--font-mono); color:var(--color-cyan);">{{getSymbolGeoCoords(hoveredSymbol)}}</span></div>
       <div style="margin-top:2px; display:flex; align-items:center; gap:4px;">
         ⛽ Fuel: <span style="font-family:var(--font-mono); font-weight:bold;" [style.color]="hoveredSymbol.isOutofFuel ? 'var(--color-danger)' : 'var(--color-success)'">{{hoveredSymbol.fuelRemaining}} / 1000 Lit</span>
+      </div>
+    </div>
+
+    <div *ngIf="hoveredWaypoint && hoveredWaypointPlan" class="tooltip-card" [style.left.px]="tooltipX" [style.top.px]="tooltipY">
+      <h4 style="font-weight:600; margin-bottom:2px; color:#ffffff;">{{hoveredWaypoint.name}}</h4>
+      <div style="font-size:10px; color:var(--color-text-secondary); margin-bottom:2px;">Plan: <span style="color:var(--color-primary); font-weight:600;">{{hoveredWaypointPlan.name}}</span></div>
+      <div>Pixel: <span style="font-family:var(--font-mono);">X: {{hoveredWaypoint.x}}px, Y: {{hoveredWaypoint.y}}px</span></div>
+      <div *ngIf="hoveredWaypoint.latitude !== undefined && hoveredWaypoint.longitude !== undefined" style="margin-top:2px; font-weight:bold; color:var(--color-cyan);">
+        GPS: <span style="font-family:var(--font-mono);">{{formatGeoCoords(hoveredWaypoint.latitude, hoveredWaypoint.longitude)}}</span>
       </div>
     </div>
 
@@ -137,7 +165,7 @@
     </div>
 
     <!-- SVG Layer for drawing routes, rendering paths and handles -->
-    <svg #svgElement class="svg-overlay" (click)="onMapClick($event)">
+    <svg #svgElement class="svg-overlay" (click)="onMapClick($event)" (mousemove)="onSvgMouseMove($event)" (mouseleave)="onSvgMouseLeave()">
       <!-- Render active plans routes -->
       <g *ngFor="let plan of plansList; let i = index">
         <!-- Route Polyline -->
@@ -157,7 +185,9 @@
           [attr.fill]="getColors(i)"
           stroke="#ffffff" 
           stroke-width="1.5"
-          class="waypoint-circle">
+          class="waypoint-circle"
+          (mousemove)="showWaypointTooltip(wp, plan, $event)"
+          (mouseleave)="hideWaypointTooltip()">
         </circle>
       </g>
 
@@ -176,7 +206,9 @@
           [attr.cy]="wp.y" 
           r="5" 
           fill="var(--color-warning)" 
-          stroke="#ffffff">
+          stroke="#ffffff"
+          (mousemove)="showWaypointTooltip(wp, {name: newPlanName || 'New Plan', speed: newPlanSpeed, startTime: newPlanStartTime, waypoints: drawingWaypoints}, $event)"
+          (mouseleave)="hideWaypointTooltip()">
         </circle>
       </g>
 

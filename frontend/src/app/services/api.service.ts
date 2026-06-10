@@ -6,6 +6,18 @@ export interface Waypoint {
   x: number;
   y: number;
   name?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+export interface MapMetadata {
+  georeferenced: boolean;
+  minLon: number;
+  maxLon: number;
+  minLat: number;
+  maxLat: number;
+  originalWidth: number;
+  originalHeight: number;
 }
 
 export interface Plan {
@@ -33,7 +45,7 @@ export interface EllipseZone {
   providedIn: 'root'
 })
 export class ApiService {
-  private baseUrl = window.location.port === '4200' ? 'http://localhost:8080/api' : '/api';
+  private baseUrl = window.location.port === '4200' ? 'http://localhost:8082/api' : '/api';
 
   constructor(private http: HttpClient) {}
 
@@ -77,5 +89,10 @@ export class ApiService {
 
   deleteEllipse(id: string): Observable<any> {
     return this.http.delete(`${this.baseUrl}/ellipses/${id}`);
+  }
+
+  // Map Metadata Endpoint
+  getMapMetadata(): Observable<MapMetadata> {
+    return this.http.get<MapMetadata>(`${this.baseUrl}/map/metadata`);
   }
 }

@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy, ElementRef, ViewChild, HostListener, Inpu
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SimulationService, SymbolState } from '../../services/simulation.service';
-import { ApiService, Plan, EllipseZone, Waypoint } from '../../services/api.service';
+import { ApiService, Plan, EllipseZone, Waypoint, MapMetadata } from '../../services/api.service';
 import { Chart, registerables } from 'chart.js';
 import { 
   LucideRotateCcw, 
@@ -23,6 +23,8 @@ interface WaypointFuelDetail {
   name: string;
   fuelRemaining: number;
   timeOffsetMinutes: number;
+  latitude?: number;
+  longitude?: number;
 }
 
 @Component({
@@ -64,7 +66,7 @@ interface WaypointFuelDetail {
     .map-image {
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: fill;
       opacity: 0.65;
       user-select: none;
       pointer-events: none;
@@ -242,8 +244,15 @@ export class MapViewComponent implements OnInit, OnDestroy {
   // Tooltips
   hoveredSymbol: SymbolState | null = null;
   hoveredEllipse: EllipseZone | null = null;
+  hoveredWaypoint: Waypoint | null = null;
+  hoveredWaypointPlan: Plan | null = null;
   tooltipX: number = 0;
   tooltipY: number = 0;
+
+  // Map Metadata & Coordinates
+  mapMetadata: MapMetadata | null = null;
+  cursorLon: number | null = null;
+  cursorLat: number | null = null;
 
   selectedPlan: Plan | null = null;
   selectedPlanWaypointsFuel: WaypointFuelDetail[] = [];
@@ -292,6 +301,7 @@ export class MapViewComponent implements OnInit, OnDestroy {
       }
     });
 
+    this.loadMapMetadata();
     this.loadPlans();
     this.loadEllipses();
   }
@@ -305,6 +315,18 @@ export class MapViewComponent implements OnInit, OnDestroy {
     if (this.distanceChart) {
       this.distanceChart.destroy();
     }
+  }
+
+  loadMapMetadata() {
+    this.apiService.getMapMetadata().subscribe({
+      next: (meta) => {
+        this.mapMetadata = meta;
+        console.log('Loaded Map Metadata:', meta);
+      },
+      error: (err) => {
+        console.error('Failed to load map metadata', err);
+      }
+    });
   }
 
   loadPlans() {
@@ -385,11 +407,55 @@ export class MapViewComponent implements OnInit, OnDestroy {
       const x = Math.round(event.clientX - rect.left);
       const y = Math.round(event.clientY - rect.top);
       
-      const wp: Waypoint = { x, y, name: `WP ${this.drawingWaypoints.length + 1}` };
+      let latitude: number | undefined = undefined;
+      let longitude: number | undefined = undefined;
+      
+      if (this.mapMetadata) {
+        const lonRange = this.mapMetadata.maxLon - this.mapMetadata.minLon;
+        const latRange = this.mapMetadata.maxLat - this.mapMetadata.minLat;
+        longitude = this.mapMetadata.minLon + (x / rect.width) * lonRange;
+        latitude = this.mapMetadata.maxLat - (y / rect.height) * latRange;
+        
+        longitude = Math.round(longitude * 10000) / 10000;
+        latitude = Math.round(latitude * 10000) / 10000;
+      }
+      
+      const wp: Waypoint = { 
+        x, 
+        y, 
+        name: `WP ${this.drawingWaypoints.length + 1}`,
+        latitude,
+        longitude
+      };
       this.drawingWaypoints.push(wp);
       
       (window as any).tempWaypoints = this.drawingWaypoints;
     }
+  }
+
+  onSvgMouseMove(event: MouseEvent) {
+    if (!this.mapMetadata) return;
+    const rect = this.svgElement.nativeElement.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    const lonRange = this.mapMetadata.maxLon - this.mapMetadata.minLon;
+    const latRange = this.mapMetadata.maxLat - this.mapMetadata.minLat;
+
+    this.cursorLon = this.mapMetadata.minLon + (x / rect.width) * lonRange;
+    this.cursorLat = this.mapMetadata.maxLat - (y / rect.height) * latRange;
+  }
+
+  onSvgMouseLeave() {
+    this.cursorLon = null;
+    this.cursorLat = null;
+  }
+
+  formatGeoCoords(lat?: number, lon?: number): string {
+    if (lat === undefined || lon === undefined || lat === null || lon === null) return '';
+    const latDirection = lat >= 0 ? 'N' : 'S';
+    const lonDirection = lon >= 0 ? 'E' : 'W';
+    return `${Math.abs(lat).toFixed(4)}° ${latDirection}, ${Math.abs(lon).toFixed(4)}° ${lonDirection}`;
   }
 
   get isDrawingActive(): boolean {
@@ -543,6 +609,17 @@ export class MapViewComponent implements OnInit, OnDestroy {
     return colors[idx % colors.length];
   }
 
+  getSymbolGeoCoords(state: SymbolState): string {
+    if (!this.mapMetadata || !this.svgElement) return '';
+    const rect = this.svgElement.nativeElement.getBoundingClientRect();
+    if (!rect || rect.width === 0 || rect.height === 0) return '';
+    const lonRange = this.mapMetadata.maxLon - this.mapMetadata.minLon;
+    const latRange = this.mapMetadata.maxLat - this.mapMetadata.minLat;
+    const lon = this.mapMetadata.minLon + (state.currentX / rect.width) * lonRange;
+    const lat = this.mapMetadata.maxLat - (state.currentY / rect.height) * latRange;
+    return this.formatGeoCoords(lat, lon);
+  }
+
   showSymbolTooltip(state: SymbolState, event: MouseEvent) {
     this.hoveredSymbol = state;
     const rect = this.svgElement.nativeElement.getBoundingClientRect();
@@ -563,6 +640,19 @@ export class MapViewComponent implements OnInit, OnDestroy {
 
   hideEllipseTooltip() {
     this.hoveredEllipse = null;
+  }
+
+  showWaypointTooltip(wp: Waypoint, plan: Plan, event: MouseEvent) {
+    this.hoveredWaypoint = wp;
+    this.hoveredWaypointPlan = plan;
+    const rect = this.svgElement.nativeElement.getBoundingClientRect();
+    this.tooltipX = event.clientX - rect.left + 15;
+    this.tooltipY = event.clientY - rect.top + 15;
+  }
+
+  hideWaypointTooltip() {
+    this.hoveredWaypoint = null;
+    this.hoveredWaypointPlan = null;
   }
 
   formatDate(dateStr: string): string {
@@ -588,11 +678,30 @@ export class MapViewComponent implements OnInit, OnDestroy {
     const fuelConsumptionPerSec = 1.0 / 60.0;
     
     let cumulativeDist = 0;
+    const rect = this.svgElement ? this.svgElement.nativeElement.getBoundingClientRect() : null;
+    
+    const getLat = (wp: Waypoint) => {
+      if (wp.latitude !== undefined && wp.latitude !== null) return wp.latitude;
+      if (this.mapMetadata && rect && rect.height > 0) {
+        return Math.round((this.mapMetadata.maxLat - (wp.y / rect.height) * (this.mapMetadata.maxLat - this.mapMetadata.minLat)) * 10000) / 10000;
+      }
+      return undefined;
+    };
+
+    const getLon = (wp: Waypoint) => {
+      if (wp.longitude !== undefined && wp.longitude !== null) return wp.longitude;
+      if (this.mapMetadata && rect && rect.width > 0) {
+        return Math.round((this.mapMetadata.minLon + (wp.x / rect.width) * (this.mapMetadata.maxLon - this.mapMetadata.minLon)) * 10000) / 10000;
+      }
+      return undefined;
+    };
     
     details.push({
       name: wps[0].name || 'WP 1',
       fuelRemaining: 1000.0,
-      timeOffsetMinutes: 0
+      timeOffsetMinutes: 0,
+      latitude: getLat(wps[0]),
+      longitude: getLon(wps[0])
     });
 
     for (let i = 1; i < wps.length; i++) {
@@ -608,7 +717,9 @@ export class MapViewComponent implements OnInit, OnDestroy {
       details.push({
         name: p2.name || `WP ${i + 1}`,
         fuelRemaining: Math.round(fuelRemaining * 10) / 10,
-        timeOffsetMinutes: Math.round((timeToReachSeconds / 60) * 10) / 10
+        timeOffsetMinutes: Math.round((timeToReachSeconds / 60) * 10) / 10,
+        latitude: getLat(p2),
+        longitude: getLon(p2)
       });
     }
 

@@ -2,7 +2,7 @@ import { Component, OnInit, OnDestroy, ElementRef, ViewChild, AfterViewInit } fr
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SimulationService } from '../../services/simulation.service';
-import { ApiService, Plan, Waypoint } from '../../services/api.service';
+import { ApiService, Plan, Waypoint, MapMetadata } from '../../services/api.service';
 import { Chart, registerables } from 'chart.js';
 
 Chart.register(...registerables);
@@ -11,6 +11,8 @@ interface WaypointFuelDetail {
   name: string;
   fuelRemaining: number;
   timeOffsetMinutes: number;
+  latitude?: number;
+  longitude?: number;
 }
 
 @Component({
@@ -111,6 +113,7 @@ export class ChartsViewComponent implements OnInit, OnDestroy, AfterViewInit {
   plansList: Plan[] = [];
   selectedPlan: Plan | null = null;
   selectedPlanWaypointsFuel: WaypointFuelDetail[] = [];
+  mapMetadata: MapMetadata | null = null;
 
   constructor(
     private simulationService: SimulationService,
@@ -118,7 +121,20 @@ export class ChartsViewComponent implements OnInit, OnDestroy, AfterViewInit {
   ) {}
 
   ngOnInit() {
+    this.loadMapMetadata();
     this.loadPlans();
+  }
+
+  loadMapMetadata() {
+    this.apiService.getMapMetadata().subscribe({
+      next: (meta) => {
+        this.mapMetadata = meta;
+        this.calculateWaypointFuelDetails();
+      },
+      error: (err) => {
+        console.error('Failed to load map metadata in charts-view', err);
+      }
+    });
   }
 
   loadPlans() {
@@ -166,7 +182,9 @@ export class ChartsViewComponent implements OnInit, OnDestroy, AfterViewInit {
     details.push({
       name: wps[0].name || 'WP 1',
       fuelRemaining: 1000.0,
-      timeOffsetMinutes: 0
+      timeOffsetMinutes: 0,
+      latitude: wps[0].latitude,
+      longitude: wps[0].longitude
     });
 
     for (let i = 1; i < wps.length; i++) {
@@ -182,11 +200,20 @@ export class ChartsViewComponent implements OnInit, OnDestroy, AfterViewInit {
       details.push({
         name: p2.name || `WP ${i + 1}`,
         fuelRemaining: Math.round(fuelRemaining * 10) / 10,
-        timeOffsetMinutes: Math.round((timeToReachSeconds / 60) * 10) / 10
+        timeOffsetMinutes: Math.round((timeToReachSeconds / 60) * 10) / 10,
+        latitude: p2.latitude,
+        longitude: p2.longitude
       });
     }
 
     this.selectedPlanWaypointsFuel = details;
+  }
+
+  formatGeoCoords(lat?: number, lon?: number): string {
+    if (lat === undefined || lon === undefined || lat === null || lon === null) return '';
+    const latDirection = lat >= 0 ? 'N' : 'S';
+    const lonDirection = lon >= 0 ? 'E' : 'W';
+    return `${Math.abs(lat).toFixed(4)}° ${latDirection}, ${Math.abs(lon).toFixed(4)}° ${lonDirection}`;
   }
 
   private initCharts() {

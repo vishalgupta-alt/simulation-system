@@ -64,6 +64,9 @@
           <!-- Waypoint info details -->
           <div class="flow-node-info">
             <span style="font-weight: 600; color: #ffffff; font-size: 13px;">{{wp.name}}</span>
+            <span *ngIf="wp.latitude !== undefined && wp.longitude !== undefined" style="font-size: 10px; color: var(--color-cyan); font-family: var(--font-mono); margin: 2px 0;">
+              {{formatGeoCoords(wp.latitude, wp.longitude)}}
+            </span>
             <span style="font-size: 11px; color: var(--color-text-secondary); font-family: var(--font-mono);">
               {{idx === 0 ? 'Start Position' : 'Reached at +' + wp.timeOffsetMinutes + ' min'}}
             </span>
