@@ -33,7 +33,7 @@ export interface EllipseZone {
   providedIn: 'root'
 })
 export class ApiService {
-  private baseUrl = 'http://localhost:8080/api';
+  private baseUrl = window.location.port === '4200' ? 'http://localhost:8080/api' : '/api';
 
   constructor(private http: HttpClient) {}
 
