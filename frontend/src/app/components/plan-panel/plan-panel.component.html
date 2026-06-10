@@ -1,0 +1,84 @@
+<div class="panel-container">
+  <!-- Create Plan Panel -->
+  <div class="glass-panel" style="padding: 16px;">
+    <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+      <svg lucideRoute style="color: var(--color-primary); width: 18px; height: 18px;"></svg>
+      Create Simulation Plan
+    </h3>
+
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <div>
+        <label style="font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px; display: block;">Plan Name</label>
+        <input type="text" class="form-input" [(ngModel)]="newPlanName" placeholder="e.g. Patrol Route Alpha" [disabled]="isDrawingRoute" />
+      </div>
+
+      <div style="display: flex; gap: 12px;">
+        <div style="flex: 1;">
+          <label style="font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px; display: block;">Speed (knots/kts)</label>
+          <input type="number" class="form-input" [(ngModel)]="newPlanSpeed" min="1" max="200" [disabled]="isDrawingRoute" />
+        </div>
+        <div style="flex: 2;">
+          <label style="font-size: 12px; color: var(--color-text-secondary); margin-bottom: 4px; display: block;">Start Date & Time</label>
+          <input type="datetime-local" class="form-input" [(ngModel)]="newPlanStartTime" [disabled]="isDrawingRoute" />
+        </div>
+      </div>
+
+      <!-- Route Plotting Controls -->
+      <div style="margin-top: 8px;">
+        <ng-container *ngIf="!isDrawingRoute">
+          <button class="btn btn-primary" style="width: 100%;" (click)="startDrawing()">
+            <svg lucideMapPin style="width: 16px; height: 16px;"></svg>
+            Plot Route on Map
+          </button>
+        </ng-container>
+
+        <ng-container *ngIf="isDrawingRoute">
+          <div class="glass-panel" style="padding: 10px; border-color: var(--color-warning); background: rgba(245, 158, 11, 0.05); margin-bottom: 8px; text-align: center;">
+            <p style="font-size: 13px; color: var(--color-warning); font-weight: 500; animation: pulse 2s infinite;">
+              🔴 Route Plotting Mode Active
+            </p>
+            <p style="font-size: 11px; color: var(--color-text-secondary); margin-top: 4px;">
+              Click on the map to place waypoints in order.
+            </p>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-secondary" style="flex: 1;" (click)="cancelDrawing()">Cancel</button>
+            <button class="btn btn-success" style="flex: 1.5;" (click)="finishDrawingAndSave()">Save Plan</button>
+          </div>
+        </ng-container>
+      </div>
+    </div>
+  </div>
+
+  <!-- Plans List Panel -->
+  <div class="glass-panel" style="padding: 16px; flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+    <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+      <svg lucideList style="color: var(--color-cyan); width: 18px; height: 18px;"></svg>
+      Active Plans ({{plans.length}})
+    </h3>
+
+    <div style="flex: 1; overflow-y: auto; padding-right: 4px;">
+      <div *ngIf="plans.length === 0" style="text-align: center; padding: 24px; color: var(--color-text-muted); font-size: 14px;">
+        No active plans created. Please plot a route to begin simulation.
+      </div>
+
+      <div *ngFor="let plan of plans" class="plan-card">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+          <h4 style="font-weight: 600; font-size: 14px; color: var(--color-text-primary);">{{plan.name}}</h4>
+          <button style="background: none; border: none; color: var(--color-text-muted); cursor: pointer; transition: color 0.2s;" 
+                  (click)="deletePlan(plan.id)" 
+                  onmouseover="this.style.color='var(--color-danger)'" 
+                  onmouseout="this.style.color='var(--color-text-muted)'">
+            <svg lucideTrash2 style="width: 15px; height: 15px;"></svg>
+          </button>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px; color: var(--color-text-secondary); font-family: var(--font-mono);">
+          <div>Speed: <span style="color: var(--color-warning);">{{plan.speed}} kts</span></div>
+          <div>Waypoints: <span style="color: var(--color-cyan);">{{plan.waypoints.length}} pts</span></div>
+          <div style="grid-column: span 2;">Start: {{formatDate(plan.startTime)}}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

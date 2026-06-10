@@ -1,0 +1,32 @@
+# Root .gitignore for simulation-system
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+logs/
+
+# Frontend (Angular)
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/.editorconfig
+frontend/package-lock.json
+
+# Backend (Spring Boot Maven)
+backend/target/
+backend/.mvn/
+backend/mvnw
+backend/mvnw.cmd
+backend/*.db
+backend/*.db.mv.db
+backend/*.db.trace.db

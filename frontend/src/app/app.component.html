@@ -1,0 +1,156 @@
+<div style="display: flex; height: 100vh; width: 100vw; background: var(--bg-primary); overflow: hidden; flex-direction: column;">
+  
+  <!-- Outer Body (Sidebar + Content Panel) -->
+  <div style="display: flex; flex: 1; overflow: hidden;">
+    
+    <!-- Left Sidebar -->
+    <aside class="glass-panel" style="width: 200px; border-radius: 0; border-top: none; border-bottom: none; border-left: none; display: flex; flex-direction: column; z-index: 10;">
+      <!-- Logo area -->
+      <div style="padding: 16px; border-bottom: 1px solid var(--border-color); display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px;">
+        <div style="width: 48px; height: 48px; border-radius: 50%; background: linear-gradient(135deg, var(--color-primary), var(--color-cyan)); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; color: #ffffff; border: 2px solid #ffffff;">
+          DRDO
+        </div>
+        <h1 style="font-size: 13px; font-weight: 700; letter-spacing: 0.5px; color: #ffffff;">TACTICAL CONTROL</h1>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav style="flex: 1; display: flex; flex-direction: column; margin-top: 12px; gap: 4px;">
+        <a class="nav-tab" [class.active]="activeTab === 'plan'" (click)="switchTab('plan')">
+          <svg lucideRoute style="width: 16px; height: 16px;"></svg>
+          <span style="font-weight: 600;">Plan</span>
+        </a>
+        <a class="nav-tab" [class.active]="activeTab === 'deploy'" (click)="switchTab('deploy')">
+          <svg lucideCircle style="width: 16px; height: 16px;"></svg>
+          <span style="font-weight: 600;">Deploy</span>
+        </a>
+        <a class="nav-tab" [class.active]="activeTab === 'charts'" (click)="switchTab('charts')">
+          <svg lucideAreaChart style="width: 16px; height: 16px;"></svg>
+          <span style="font-weight: 600;">O/P Charts</span>
+        </a>
+      </nav>
+
+      <!-- Sidebar Footer Details (Fuel Config specs) -->
+      <div class="glass-panel" style="margin: 12px; padding: 10px; border-radius: 8px; font-size: 10px; color: var(--color-text-secondary); background: rgba(11, 15, 25, 0.4);">
+        <p style="margin-bottom: 4px;">⛽ Fuel Limit: <strong>1000 Lit</strong></p>
+        <p>📈 Consumption: <strong>1 Lit/Min</strong></p>
+      </div>
+    </aside>
+
+    <!-- Main Content layout (Header + Active Panel) -->
+    <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+      
+      <!-- Topbar Controls Dashboard -->
+      <header class="glass-panel" style="border-radius: 0; border-top: none; border-right: none; border-left: none; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; z-index: 5;">
+        
+        <!-- Game Start DateTime picker -->
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 11px; color: var(--color-text-secondary); font-weight: 600; text-transform: uppercase;">Game Start Date/Time:</span>
+          <input 
+            type="datetime-local" 
+            class="form-input" 
+            style="width: 170px; padding: 4px 6px; font-size: 11px; border-radius: 6px;"
+            [ngModel]="simulationService.getGameStartDate().toISOString().substring(0, 16)"
+            (ngModelChange)="onGameStartDateChange($event)" />
+        </div>
+
+        <!-- Simulation Playback controls (Play, Pause, Reset) -->
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <button class="btn btn-secondary btn-icon" style="width:32px; height:32px;" title="Reset" (click)="simulationService.resetSimulation()">
+            <svg lucideRotateCcw style="width: 14px; height: 14px;"></svg>
+          </button>
+          
+          <ng-container *ngIf="!(simulationService.isPlaying$ | async)">
+            <button class="btn btn-success" style="padding: 4px 10px; font-size:12px;" (click)="simulationService.setPlaying(true)">
+              <svg lucidePlay style="width: 12px; height: 12px;"></svg> Play
+            </button>
+          </ng-container>
+
+          <ng-container *ngIf="simulationService.isPlaying$ | async">
+            <button class="btn btn-primary" style="padding: 4px 10px; font-size:12px;" (click)="simulationService.setPlaying(false)">
+              <svg lucidePause style="width: 12px; height: 12px;"></svg> Pause
+            </button>
+          </ng-container>
+
+          <!-- Step buttons -->
+          <button class="btn btn-secondary btn-icon" style="width:32px; height:32px;" title="Step Backward" (click)="simulationService.stepBackward()">
+            <svg lucideSkipBack style="width: 14px; height: 14px;"></svg>
+          </button>
+          <button class="btn btn-secondary btn-icon" style="width:32px; height:32px;" title="Step Forward" (click)="simulationService.stepForward()">
+            <svg lucideSkipForward style="width: 14px; height: 14px;"></svg>
+          </button>
+        </div>
+
+        <!-- Event vs Time Based Mode selector (Radio buttons as requested) -->
+        <div style="display: flex; align-items: center; gap: 16px; font-size: 12px;">
+          <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; color: var(--color-text-primary);">
+            <input 
+              type="radio" 
+              name="simMode" 
+              [checked]="!(simulationService.isTimeBased$ | async)" 
+              (change)="simulationService.setTimeBased(false)" />
+            Event Based
+          </label>
+          <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; color: var(--color-text-primary);">
+            <input 
+              type="radio" 
+              name="simMode" 
+              [checked]="simulationService.isTimeBased$ | async" 
+              (change)="simulationService.setTimeBased(true)" />
+            Time Based
+          </label>
+        </div>
+
+        <!-- Current Date/Time display & Speed selector -->
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <select 
+            [ngModel]="simulationService.playbackSpeed$ | async" 
+            (ngModelChange)="simulationService.setPlaybackSpeed($event)"
+            class="form-input" 
+            style="width: 70px; padding: 4px 6px; border-radius: 6px; font-size: 11px;">
+            <option [value]="1">1x</option>
+            <option [value]="10">10x</option>
+            <option [value]="60">60x</option>
+            <option [value]="600">600x</option>
+            <option [value]="3600">3600x</option>
+          </select>
+
+          <div class="text-mono" style="font-size: 11px; background: rgba(30,41,59,0.5); padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color); text-align: right;">
+            <span style="color: var(--color-cyan);">Sim Time: </span>
+            <span style="font-weight: bold; color: #ffffff;">{{getFormattedSimTime()}}</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Panel Content Container -->
+      <main style="flex: 1; overflow: hidden; background: radial-gradient(circle at top right, #111827 0%, var(--bg-primary) 100%); display: flex; flex-direction: column;">
+        <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+          <app-map-view [activeTab]="activeTab" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;"></app-map-view>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Global Bottom Date & Time Slider Bar (Always visible at bottom) -->
+  <footer class="glass-panel" style="border-radius: 0; border-bottom: none; border-right: none; border-left: none; padding: 12px 24px; display: flex; align-items: center; gap: 16px; z-index: 10;">
+    <span style="font-size: 11px; color: var(--color-text-secondary); font-weight: 700; text-transform: uppercase; white-space: nowrap;">
+      Date & Time Slider
+    </span>
+    
+    <div style="font-family: var(--font-mono); font-size: 12px; color: var(--color-primary); font-weight: bold; min-width: 75px;">
+      {{getFormattedSimTime()}}
+    </div>
+    
+    <input 
+      type="range" 
+      class="custom-slider" 
+      [min]="0" 
+      [max]="simulationService.simulationDuration$ | async" 
+      [value]="simulationService.currentTimeOffset$ | async" 
+      (input)="onSliderChange($event)" 
+      style="flex: 1;" />
+    
+    <div style="font-family: var(--font-mono); font-size: 11px; color: var(--color-text-secondary); min-width: 85px; text-align: right;">
+      {{getFormattedSimDate()}}
+    </div>
+  </footer>
+</div>

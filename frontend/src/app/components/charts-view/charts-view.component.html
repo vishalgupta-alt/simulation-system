@@ -1,0 +1,79 @@
+<div class="charts-dashboard">
+  <!-- Left Side: Visual Comparison Charts -->
+  <div style="display: flex; flex-direction: column;">
+    <!-- Fuel level line chart -->
+    <div class="chart-card">
+      <h3 style="font-size: 14px; color: var(--color-text-primary); font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+        ⚡ Plan Fuel Depletion Rates
+      </h3>
+      <div class="chart-wrapper">
+        <canvas #fuelChartCanvas></canvas>
+      </div>
+    </div>
+
+    <!-- Distance covered bar chart -->
+    <div class="chart-card">
+      <h3 style="font-size: 14px; color: var(--color-text-primary); font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+        📏 Distance covered comparison
+      </h3>
+      <div class="chart-wrapper">
+        <canvas #distanceChartCanvas></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Side: Waypoint fuel detail flow diagram (matches the sketch detailed plan box) -->
+  <div class="details-card">
+    <h3 style="font-size: 14px; color: var(--color-text-primary); font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+      📊 Selected Plan details
+    </h3>
+
+    <!-- Plan select dropdown -->
+    <div>
+      <label style="font-size: 11px; color: var(--color-text-secondary); display: block; margin-bottom: 4px;">Choose Plan:</label>
+      <select 
+        [(ngModel)]="selectedPlan" 
+        (change)="onPlanSelectChange()" 
+        class="form-input" 
+        style="padding: 6px 10px; font-size: 12px; border-radius: 6px;">
+        <option *ngFor="let plan of plansList" [ngValue]="plan">{{plan.name}}</option>
+      </select>
+    </div>
+
+    <div *ngIf="selectedPlan" style="margin-top: 12px; font-size: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-family: var(--font-sans);">
+      <div>Speed: <strong style="color: var(--color-warning);">{{selectedPlan.speed}} kts</strong></div>
+      <div>Start Time: <strong>{{selectedPlan.startTime | date:'short'}}</strong></div>
+    </div>
+
+    <!-- Waypoint Flow Node sequence (sketch styled box) -->
+    <div *ngIf="selectedPlan && selectedPlanWaypointsFuel.length > 0" class="flow-container">
+      <h4 style="font-size: 11px; color: var(--color-text-secondary); font-weight: 700; text-transform: uppercase;">
+        Waypoint Fuel Flow
+      </h4>
+
+      <div *ngFor="let wp of selectedPlanWaypointsFuel; let idx = index">
+        <!-- Vertical connector line if not first -->
+        <div *ngIf="idx > 0" class="flow-node-line"></div>
+
+        <div class="flow-node-row">
+          <!-- Flow circle containing fuel remaining -->
+          <div class="flow-node-circle" [style.border-color]="wp.fuelRemaining === 0 ? 'var(--color-danger)' : 'var(--color-cyan)'" [style.box-shadow]="wp.fuelRemaining === 0 ? '0 0 10px rgba(239, 68, 68, 0.3)' : '0 0 10px rgba(6, 182, 212, 0.3)'">
+            <span style="font-size: 11px;">{{wp.fuelRemaining}}L</span>
+          </div>
+
+          <!-- Waypoint info details -->
+          <div class="flow-node-info">
+            <span style="font-weight: 600; color: #ffffff; font-size: 13px;">{{wp.name}}</span>
+            <span style="font-size: 11px; color: var(--color-text-secondary); font-family: var(--font-mono);">
+              {{idx === 0 ? 'Start Position' : 'Reached at +' + wp.timeOffsetMinutes + ' min'}}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div *ngIf="!selectedPlan" style="flex: 1; display: flex; align-items: center; justify-content: center; color: var(--color-text-muted); font-size: 13px;">
+      No plans available. Go to "Plan" tab to create one.
+    </div>
+  </div>
+</div>
