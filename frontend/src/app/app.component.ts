@@ -61,6 +61,11 @@ export class App implements OnInit {
     this.activeTab = tab;
   }
 
+  getLocalISOString(date: Date): string {
+    const tzOffset = date.getTimezoneOffset() * 60000;
+    return new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
+  }
+
   onGameStartDateChange(eventVal: string) {
     if (eventVal) {
       this.simulationService.setGameStartDate(new Date(eventVal));

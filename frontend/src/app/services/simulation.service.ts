@@ -7,7 +7,10 @@ export interface SymbolState {
   planName: string;
   currentX: number;
   currentY: number;
+  currentLat?: number;
+  currentLon?: number;
   fuelRemaining: number;
+  fuelLimit: number;
   distanceTraveled: number;
   isStarted: boolean;
   isFinished: boolean;
@@ -96,22 +99,30 @@ export class SimulationService {
         minStartMs = startMs;
       }
 
-      // Calculate path length to estimate travel time
+      // Calculate path length to estimate travel time in georeferenced space
       let totalPathLength = 0;
       const wps = plan.waypoints || [];
+      const getLon = (wp: Waypoint) => {
+        if (wp.longitude !== undefined && wp.longitude !== null) return wp.longitude;
+        return -180.0 + (wp.x / 1000) * 360.0;
+      };
+      const getLat = (wp: Waypoint) => {
+        if (wp.latitude !== undefined && wp.latitude !== null) return wp.latitude;
+        return 90.0 - (wp.y / 1000) * 180.0;
+      };
       for (let i = 0; i < wps.length - 1; i++) {
         const p1 = wps[i];
         const p2 = wps[i + 1];
-        totalPathLength += Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+        const dLon = getLon(p2) - getLon(p1);
+        const dLat = getLat(p2) - getLat(p1);
+        totalPathLength += Math.sqrt(dLon * dLon + dLat * dLat);
       }
 
-      const speedInPxSec = plan.speed * 10;
-      const travelTimeSeconds = speedInPxSec > 0 ? totalPathLength / speedInPxSec : 0;
+      const speedInDegSec = plan.speed / 216000.0;
+      const travelTimeSeconds = speedInDegSec > 0 ? totalPathLength / speedInDegSec : 0;
       
-      // Fuel limit is 1000 Lit, depletion at 1 Lit/minute = 1/60 Lit/sec
-      // So fuel depletion occurs at 1000 * 60 = 60,000 seconds maximum moving time
-      const maxMovingTimeSeconds = Math.min(travelTimeSeconds, 60000);
-      const endMs = startMs + maxMovingTimeSeconds * 1000;
+      // The timeline covers the full travel duration of the route, not capped at fuel depletion.
+      const endMs = startMs + travelTimeSeconds * 1000;
 
       if (endMs > maxEndMs) {
         maxEndMs = endMs;
@@ -271,36 +282,45 @@ export class SimulationService {
 
       // We need waypoint reach times and out-of-fuel times
       if (plan.waypoints && plan.waypoints.length > 0) {
-        // Calculate cumulative lengths of segments
+        const getLon = (wp: Waypoint) => {
+          if (wp.longitude !== undefined && wp.longitude !== null) return wp.longitude;
+          return -180.0 + (wp.x / 1000) * 360.0;
+        };
+        const getLat = (wp: Waypoint) => {
+          if (wp.latitude !== undefined && wp.latitude !== null) return wp.latitude;
+          return 90.0 - (wp.y / 1000) * 180.0;
+        };
+
+        // Calculate cumulative lengths of segments in degrees
         let cumulativeDist = 0;
         let lastPt = plan.waypoints[0];
         const reachOffsets: number[] = [startOffset];
 
         for (let i = 1; i < plan.waypoints.length; i++) {
           const pt = plan.waypoints[i];
-          const dx = pt.x - lastPt.x;
-          const dy = pt.y - lastPt.y;
-          const segDist = Math.sqrt(dx * dx + dy * dy);
+          const dLon = getLon(pt) - getLon(lastPt);
+          const dLat = getLat(pt) - getLat(lastPt);
+          const segDist = Math.sqrt(dLon * dLon + dLat * dLat);
           cumulativeDist += segDist;
           lastPt = pt;
 
-          // Speed in pixels/sec (we scale this in UI, say 1 speed = 10 pixels/sec)
-          const speedInPxSec = plan.speed * 10;
-          const timeToReachSeg = speedInPxSec > 0 ? cumulativeDist / speedInPxSec : 0;
+          const speedInDegSec = plan.speed / 216000.0;
+          const timeToReachSeg = speedInDegSec > 0 ? cumulativeDist / speedInDegSec : 0;
           const reachOffset = Math.floor(startOffset + timeToReachSeg);
           reachOffsets.push(reachOffset);
           offsetsSet.add(reachOffset);
         }
 
-        // Fuel limit limit 1000 Lit, 1 Lit/minute = 1/60 Lit/sec
-        // Fuel depletion time = 1000 * 60 = 60,000 seconds of active movement
-        const fuelConsumptionPerSec = 1.0 / 60.0;
-        const outOfFuelOffset = Math.floor(startOffset + (1000.0 / fuelConsumptionPerSec));
+        // Fuel limit and consumption rate from plan settings
+        const fuelLimit = plan.fuelLimit || 1000.0;
+        const fuelConsumption = plan.fuelConsumption || 1.0;
+        const fuelConsumptionPerSec = fuelConsumption / 60.0;
+        const outOfFuelOffset = fuelConsumptionPerSec > 0 ? Math.floor(startOffset + (fuelLimit / fuelConsumptionPerSec)) : Infinity;
         if (outOfFuelOffset < this.simulationDurationSubject.value) {
           // Check if it runs out of fuel before finishing the path
-          const speedInPxSec = plan.speed * 10;
-          const totalPathTime = speedInPxSec > 0 ? cumulativeDist / speedInPxSec : 0;
-          if (1000.0 / fuelConsumptionPerSec < totalPathTime) {
+          const speedInDegSec = plan.speed / 216000.0;
+          const totalPathTime = speedInDegSec > 0 ? cumulativeDist / speedInDegSec : 0;
+          if (fuelConsumptionPerSec > 0 && (fuelLimit / fuelConsumptionPerSec) < totalPathTime) {
             offsetsSet.add(outOfFuelOffset);
           }
         }
@@ -345,13 +365,26 @@ export class SimulationService {
       
       const waypoints = plan.waypoints || [];
       
+      const getLon = (wp: Waypoint) => {
+        if (wp.longitude !== undefined && wp.longitude !== null) return wp.longitude;
+        return -180.0 + (wp.x / 1000) * 360.0;
+      };
+      const getLat = (wp: Waypoint) => {
+        if (wp.latitude !== undefined && wp.latitude !== null) return wp.latitude;
+        return 90.0 - (wp.y / 1000) * 180.0;
+      };
+
       // Default state at start position
+      const fuelLimit = plan.fuelLimit || 1000.0;
       const defaultState: SymbolState = {
         planId: plan.id || '',
         planName: plan.name,
-        currentX: waypoints.length > 0 ? waypoints[0].x : 0,
-        currentY: waypoints.length > 0 ? waypoints[0].y : 0,
-        fuelRemaining: 1000.0,
+        currentX: 0,
+        currentY: 0,
+        currentLat: waypoints.length > 0 ? getLat(waypoints[0]) : 0,
+        currentLon: waypoints.length > 0 ? getLon(waypoints[0]) : 0,
+        fuelRemaining: fuelLimit,
+        fuelLimit: fuelLimit,
         distanceTraveled: 0,
         isStarted: false,
         isFinished: false,
@@ -359,27 +392,34 @@ export class SimulationService {
         activeSegmentIndex: -1
       };
 
-      if (waypoints.length === 0) return defaultState;
+      if (waypoints.length === 0) {
+        return {
+          ...defaultState,
+          isFinished: true
+        };
+      }
 
       // Has simulation reached start time?
       if (currentOffset < startOffset) {
         return defaultState;
       }
 
-      // Compute total segments lengths
+      // Compute total segments lengths in degrees
       const segmentLengths: number[] = [];
       let totalPathLength = 0;
       for (let i = 0; i < waypoints.length - 1; i++) {
         const p1 = waypoints[i];
         const p2 = waypoints[i + 1];
-        const dist = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+        const dLon = getLon(p2) - getLon(p1);
+        const dLat = getLat(p2) - getLat(p1);
+        const dist = Math.sqrt(dLon * dLon + dLat * dLat);
         segmentLengths.push(dist);
         totalPathLength += dist;
       }
 
-      // Convert speed factor to pixels/second
-      const speedInPxSec = plan.speed * 10;
-      if (speedInPxSec <= 0) {
+      // Convert speed factor to degrees/second (1 knot = 1/60 degrees/hour = 1/216000 degrees/second)
+      const speedInDegSec = plan.speed / 216000.0;
+      if (speedInDegSec <= 0) {
         return {
           ...defaultState,
           isStarted: true
@@ -388,12 +428,12 @@ export class SimulationService {
 
       const timeMoving = currentOffset - startOffset; // seconds since start of this plan
 
-      // Fuel logic: 1 Lit/minute = 1/60 Lit/sec
-      const fuelConsumptionPerSec = 1.0 / 60.0;
-      const totalFuelCapacity = 1000.0;
+      // Fuel logic: dynamic fuel capacity and rate per plan
+      const totalFuelCapacity = plan.fuelLimit || 1000.0;
+      const fuelConsumption = plan.fuelConsumption || 1.0;
+      const fuelConsumptionPerSec = fuelConsumption / 60.0;
       
-      // Calculate how long fuel lasts in seconds: 1000 / (1/60) = 60,000 seconds (16.66 hours)
-      const maxMovingTimeWithFuel = totalFuelCapacity / fuelConsumptionPerSec; // 60,000s
+      const maxMovingTimeWithFuel = fuelConsumptionPerSec > 0 ? (totalFuelCapacity / fuelConsumptionPerSec) : Infinity;
 
       let actualMovingTime = timeMoving;
       let isOutofFuel = false;
@@ -407,7 +447,7 @@ export class SimulationService {
 
       // Check if it reached destination
       const maxDistance = totalPathLength;
-      const theoreticalDistance = actualMovingTime * speedInPxSec;
+      const theoreticalDistance = actualMovingTime * speedInDegSec;
       
       let distanceTraveled = theoreticalDistance;
       let isFinished = false;
@@ -417,19 +457,19 @@ export class SimulationService {
         isFinished = true;
         isOutofFuel = false; // Stopped at destination, didn't run out of fuel during transit if it reached before depletion
         // Recalculate actual fuel spent to reach destination
-        const timeToDestination = maxDistance / speedInPxSec;
+        const timeToDestination = maxDistance / speedInDegSec;
         fuelRemaining = Math.max(0, totalFuelCapacity - (timeToDestination * fuelConsumptionPerSec));
       }
 
-      // Find current position based on distanceTraveled
-      let currentX = waypoints[0].x;
-      let currentY = waypoints[0].y;
+      // Find current position in degrees based on distanceTraveled
+      let currentLon = getLon(waypoints[0]);
+      let currentLat = getLat(waypoints[0]);
       let accumulatedDistance = 0;
       let activeSegmentIndex = -1;
 
       if (isFinished) {
-        currentX = waypoints[waypoints.length - 1].x;
-        currentY = waypoints[waypoints.length - 1].y;
+        currentLon = getLon(waypoints[waypoints.length - 1]);
+        currentLat = getLat(waypoints[waypoints.length - 1]);
         activeSegmentIndex = waypoints.length - 2;
       } else {
         for (let i = 0; i < segmentLengths.length; i++) {
@@ -439,8 +479,8 @@ export class SimulationService {
             const ratio = (distanceTraveled - accumulatedDistance) / segLen;
             const p1 = waypoints[i];
             const p2 = waypoints[i + 1];
-            currentX = p1.x + (p2.x - p1.x) * ratio;
-            currentY = p1.y + (p2.y - p1.y) * ratio;
+            currentLon = getLon(p1) + (getLon(p2) - getLon(p1)) * ratio;
+            currentLat = getLat(p1) + (getLat(p2) - getLat(p1)) * ratio;
             activeSegmentIndex = i;
             break;
           }
@@ -451,9 +491,12 @@ export class SimulationService {
       return {
         planId: plan.id || '',
         planName: plan.name,
-        currentX,
-        currentY,
+        currentX: 0,
+        currentY: 0,
+        currentLat,
+        currentLon,
         fuelRemaining: Math.round(fuelRemaining * 100) / 100,
+        fuelLimit: totalFuelCapacity,
         distanceTraveled: Math.round(distanceTraveled * 100) / 100,
         isStarted: true,
         isFinished,
@@ -463,5 +506,14 @@ export class SimulationService {
     });
 
     this.symbolStatesSubject.next(states);
+
+    // Auto-pause simulation if all plans have finished or run out of fuel
+    if (states.length > 0 && states.every(s => s.isFinished || s.isOutofFuel)) {
+      if (this.isPlayingSubject.value) {
+        setTimeout(() => {
+          this.setPlaying(false);
+        }, 0);
+      }
+    }
   }
 }

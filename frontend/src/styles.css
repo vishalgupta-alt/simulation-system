@@ -178,3 +178,9 @@ body {
   color: var(--color-text-primary);
   background: rgba(255, 255, 255, 0.02);
 }
+
+/* Make browser native calendar/time picker icons visible on dark background */
+::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(1);
+}

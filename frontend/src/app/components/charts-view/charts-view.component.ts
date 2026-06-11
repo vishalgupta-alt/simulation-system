@@ -115,6 +115,8 @@ export class ChartsViewComponent implements OnInit, OnDestroy, AfterViewInit {
   selectedPlanWaypointsFuel: WaypointFuelDetail[] = [];
   mapMetadata: MapMetadata | null = null;
 
+  simulationDuration: number = 24 * 3600;
+
   constructor(
     private simulationService: SimulationService,
     private apiService: ApiService
@@ -123,6 +125,10 @@ export class ChartsViewComponent implements OnInit, OnDestroy, AfterViewInit {
   ngOnInit() {
     this.loadMapMetadata();
     this.loadPlans();
+    this.simulationService.simulationDuration$.subscribe(duration => {
+      this.simulationDuration = duration;
+      this.updateCharts();
+    });
   }
 
   loadMapMetadata() {
@@ -173,36 +179,49 @@ export class ChartsViewComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     const details: WaypointFuelDetail[] = [];
-    const speedInPxSec = plan.speed * 10;
-    const fuelConsumptionPerSec = 1.0 / 60.0;
+    const fuelLimit = plan.fuelLimit || 1000.0;
+    const fuelConsumption = plan.fuelConsumption || 1.0;
+    const fuelConsumptionPerSec = fuelConsumption / 60.0;
     
     let cumulativeDist = 0;
     
-    // Add start waypoint details
+    const getLon = (wp: Waypoint) => {
+      if (wp.longitude !== undefined && wp.longitude !== null) return wp.longitude;
+      return -180.0 + (wp.x / 1000) * 360.0;
+    };
+
+    const getLat = (wp: Waypoint) => {
+      if (wp.latitude !== undefined && wp.latitude !== null) return wp.latitude;
+      return 90.0 - (wp.y / 1000) * 180.0;
+    };
+
     details.push({
       name: wps[0].name || 'WP 1',
-      fuelRemaining: 1000.0,
+      fuelRemaining: fuelLimit,
       timeOffsetMinutes: 0,
-      latitude: wps[0].latitude,
-      longitude: wps[0].longitude
+      latitude: getLat(wps[0]),
+      longitude: getLon(wps[0])
     });
 
     for (let i = 1; i < wps.length; i++) {
       const p1 = wps[i - 1];
       const p2 = wps[i];
-      const dist = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+      const dLon = getLon(p2) - getLon(p1);
+      const dLat = getLat(p2) - getLat(p1);
+      const dist = Math.sqrt(dLon * dLon + dLat * dLat);
       cumulativeDist += dist;
 
-      const timeToReachSeconds = speedInPxSec > 0 ? cumulativeDist / speedInPxSec : 0;
+      const speedInDegSec = plan.speed / 216000.0;
+      const timeToReachSeconds = speedInDegSec > 0 ? cumulativeDist / speedInDegSec : 0;
       const fuelUsed = timeToReachSeconds * fuelConsumptionPerSec;
-      const fuelRemaining = Math.max(0, 1000.0 - fuelUsed);
+      const fuelRemaining = Math.max(0, fuelLimit - fuelUsed);
 
       details.push({
         name: p2.name || `WP ${i + 1}`,
         fuelRemaining: Math.round(fuelRemaining * 10) / 10,
         timeOffsetMinutes: Math.round((timeToReachSeconds / 60) * 10) / 10,
-        latitude: p2.latitude,
-        longitude: p2.longitude
+        latitude: getLat(p2),
+        longitude: getLon(p2)
       });
     }
 
@@ -247,8 +266,7 @@ export class ChartsViewComponent implements OnInit, OnDestroy, AfterViewInit {
             y: {
               grid: { color: 'rgba(255,255,255,0.03)' },
               ticks: { color: '#94a3b8' },
-              min: 0,
-              max: 1000
+              min: 0
             }
           }
         }
@@ -270,7 +288,7 @@ export class ChartsViewComponent implements OnInit, OnDestroy, AfterViewInit {
             legend: { display: false },
             title: {
               display: true,
-              text: 'Plan Comparisons: Total Distance Covered (Pixels)',
+              text: 'Plan Comparisons: Total Distance Covered (NM)',
               color: '#f8fafc',
               font: { size: 13, family: 'Outfit', weight: 'bold' }
             }
@@ -293,16 +311,29 @@ export class ChartsViewComponent implements OnInit, OnDestroy, AfterViewInit {
   private updateCharts() {
     if (!this.fuelChart || !this.distanceChart || this.plansList.length === 0) return;
 
-    // 1. Generate Fuel Over Time Data (sample 12 points along the 24 hours simulation)
-    const hours = Array.from({ length: 13 }, (_, i) => i * 2);
-    const labels = hours.map(h => `${h}h`);
+    const duration = this.simulationDuration;
+    const intervals = 10;
+    const step = duration / intervals;
+    const labels: string[] = [];
+    const timePoints: number[] = [];
+
+    for (let i = 0; i <= intervals; i++) {
+      const sec = Math.round(i * step);
+      timePoints.push(sec);
+      
+      if (duration < 3600) {
+        labels.push(`${Math.round(sec / 60)}m`);
+      } else {
+        const hrs = Math.round((sec / 3600) * 10) / 10;
+        labels.push(`${hrs}h`);
+      }
+    }
 
     const fuelDatasets = this.plansList.map((plan, idx) => {
       const colors = ['#3b82f6', '#f59e0b', '#10b981', '#a855f7', '#06b6d4', '#ec4899'];
       const color = colors[idx % colors.length];
 
-      const data = hours.map(h => {
-        const simSeconds = h * 3600;
+      const data = timePoints.map(simSeconds => {
         const planStart = new Date(plan.startTime);
         const gameStart = this.simulationService.getGameStartDate();
         const planStartOffset = (planStart.getTime() - gameStart.getTime()) / 1000;
@@ -315,24 +346,38 @@ export class ChartsViewComponent implements OnInit, OnDestroy, AfterViewInit {
         
         let totalPathLength = 0;
         const waypoints = plan.waypoints || [];
+        
+        const getLon = (wp: Waypoint) => {
+          if (wp.longitude !== undefined && wp.longitude !== null) return wp.longitude;
+          return -180.0 + (wp.x / 1000) * 360.0;
+        };
+
+        const getLat = (wp: Waypoint) => {
+          if (wp.latitude !== undefined && wp.latitude !== null) return wp.latitude;
+          return 90.0 - (wp.y / 1000) * 180.0;
+        };
+
         for (let i = 0; i < waypoints.length - 1; i++) {
           const p1 = waypoints[i];
           const p2 = waypoints[i + 1];
-          totalPathLength += Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+          const dLon = getLon(p2) - getLon(p1);
+          const dLat = getLat(p2) - getLat(p1);
+          totalPathLength += Math.sqrt(dLon * dLon + dLat * dLat);
         }
 
-        const speedInPxSec = plan.speed * 10;
-        const timeToDestination = speedInPxSec > 0 ? totalPathLength / speedInPxSec : 0;
-
-        const fuelConsumptionPerSec = 1.0 / 60.0;
+        const speedInDegSec = plan.speed / 216000.0;
+        const timeToDestination = speedInDegSec > 0 ? totalPathLength / speedInDegSec : 0;
+        const fuelLimit = plan.fuelLimit || 1000.0;
+        const fuelConsumption = plan.fuelConsumption || 1.0;
+        const fuelConsumptionPerSec = fuelConsumption / 60.0;
         
         if (timeMoving >= timeToDestination) {
           const fuelUsed = timeToDestination * fuelConsumptionPerSec;
-          return Math.max(0, 1000.0 - fuelUsed);
+          return Math.max(0, fuelLimit - fuelUsed);
         }
 
         const fuelUsed = timeMoving * fuelConsumptionPerSec;
-        return Math.max(0, 1000.0 - fuelUsed);
+        return Math.max(0, fuelLimit - fuelUsed);
       });
 
       return {
@@ -349,16 +394,28 @@ export class ChartsViewComponent implements OnInit, OnDestroy, AfterViewInit {
     this.fuelChart.data.datasets = fuelDatasets;
     this.fuelChart.update();
 
-    // 2. Generate Distance Covered Data
     const distanceData = this.plansList.map(plan => {
       let totalPathLength = 0;
       const waypoints = plan.waypoints || [];
+      
+      const getLon = (wp: Waypoint) => {
+        if (wp.longitude !== undefined && wp.longitude !== null) return wp.longitude;
+        return -180.0 + (wp.x / 1000) * 360.0;
+      };
+
+      const getLat = (wp: Waypoint) => {
+        if (wp.latitude !== undefined && wp.latitude !== null) return wp.latitude;
+        return 90.0 - (wp.y / 1000) * 180.0;
+      };
+
       for (let i = 0; i < waypoints.length - 1; i++) {
         const p1 = waypoints[i];
         const p2 = waypoints[i + 1];
-        totalPathLength += Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+        const dLon = getLon(p2) - getLon(p1);
+        const dLat = getLat(p2) - getLat(p1);
+        totalPathLength += Math.sqrt(dLon * dLon + dLat * dLat);
       }
-      return Math.round(totalPathLength);
+      return Math.round(totalPathLength * 60);
     });
 
     const colors = this.plansList.map((_, idx) => {
@@ -368,7 +425,7 @@ export class ChartsViewComponent implements OnInit, OnDestroy, AfterViewInit {
 
     this.distanceChart.data.labels = this.plansList.map(p => p.name);
     this.distanceChart.data.datasets = [{
-      label: 'Distance',
+      label: 'Approx. Distance (NM)',
       data: distanceData,
       backgroundColor: colors,
       borderColor: colors.map(c => c.replace('aa', '')),

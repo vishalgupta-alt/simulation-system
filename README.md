@@ -13,14 +13,40 @@ A self-contained tactical command and control simulation system featuring intera
 
 ---
 
-## 🛠️ Prerequisites
+## 🛠️ Prerequisites & Setup Guide
 
-Before running the application, ensure you have:
-1. **Java Runtime Environment (JRE) / JDK 17** (or higher) installed.
+Before running the application, ensure you have the following dependencies configured on your target system:
+
+### 1. Java & Database Setup
+1. **Java Development Kit (JDK) 17** (or higher) installed on your system.
 2. **PostgreSQL** installed and running on port `5432`.
-3. **PostgreSQL Setup**:
-   - Create a database named `simulation_db`.
-   - Ensure you have a superuser `postgres` with password `postgres` (or customize database credentials at runtime, see below).
+3. **PostgreSQL Database**: Create an empty database named `simulation_db` (default credentials used by the app are username `postgres` and password `postgres`).
+
+### 2. GeoServer & GeoTIFF Map Setup
+The application renders global map tiles by calling local GeoServer WMS endpoints.
+1. **Download & Install GeoServer**:
+   - Download the latest stable version of GeoServer (e.g. 2.24.x) from the [official downloads page](https://geoserver.org/download/).
+   - Install and launch GeoServer. Ensure it runs on the default **port `8080`**.
+2. **Configure WMS Layer in GeoServer**:
+   - Open a browser and access the GeoServer Web Admin console at `http://localhost:8080/geoserver/web/`.
+   - Log in using default credentials (Username: `admin` / Password: `geoserver`).
+   - **Create a Workspace**:
+     - Go to **Workspaces** (left menu) -> **Add new workspace**.
+     - Set **Name** to `vishal` and **Namespace URI** to `http://localhost:8080/geoserver/vishal`.
+     - Check the **Default Workspace** box and click **Save**.
+   - **Add the GeoTIFF Data Store**:
+     - Go to **Stores** -> **Add new Store** -> select **GeoTIFF** under Raster Data Sources.
+     - Set **Workspace** to `vishal` and **Data Source Name** to `NE2_HR_LC_SR_W_DR`.
+     - Click **Browse** next to Connection Parameters and select the raster TIFF map file (`NE2_HR_LC_SR_W_DR.tif`) on your local drive.
+     - Click **Save**.
+   - **Publish the Raster Layer**:
+     - On the next screen, click **Publish** next to `NE2_HR_LC_SR_W_DR`.
+     - Under the **Data** tab, verify **Declared SRS** is set to `EPSG:4326`.
+     - Under **Bounding Boxes**, click **Compute from data** and then **Compute from native bounds**.
+     - Click **Save**.
+3. **Verify WMS Tile Delivery**:
+   - Go to **Layer Preview** in the left menu.
+   - Click the **OpenLayers** link next to `vishal:NE2_HR_LC_SR_W_DR` to verify the world map loads correctly in your browser.
 
 ---
 

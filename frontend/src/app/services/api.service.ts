@@ -95,4 +95,9 @@ export class ApiService {
   getMapMetadata(): Observable<MapMetadata> {
     return this.http.get<MapMetadata>(`${this.baseUrl}/map/metadata`);
   }
+
+  // Get Map Image URL
+  getMapImageUrl(): string {
+    return 'http://localhost:8080/geoserver/vishal/wms?service=WMS&version=1.1.0&request=GetMap&layers=vishal:NE2_HR_LC_SR_W_DR&bbox=-180.0,-90.0,180.0,90.0&width=2048&height=1024&srs=EPSG:4326&styles=&format=image/jpeg';
+  }
 }
