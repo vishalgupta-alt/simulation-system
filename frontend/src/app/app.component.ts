@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MapViewComponent } from './components/map-view/map-view.component';
@@ -34,9 +34,11 @@ import {
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
 })
-export class App implements OnInit {
+export class App implements OnInit, OnDestroy {
   title = 'Tactical Simulation Command Center';
   activeTab: 'plan' | 'deploy' | 'charts' = 'deploy';
+  systemTime: Date = new Date();
+  private systemTimeInterval: any;
 
   constructor(
     public simulationService: SimulationService,
@@ -45,6 +47,15 @@ export class App implements OnInit {
 
   ngOnInit() {
     this.loadData();
+    this.systemTimeInterval = setInterval(() => {
+      this.systemTime = new Date();
+    }, 1000);
+  }
+
+  ngOnDestroy() {
+    if (this.systemTimeInterval) {
+      clearInterval(this.systemTimeInterval);
+    }
   }
 
   loadData() {
@@ -83,5 +94,14 @@ export class App implements OnInit {
 
   getFormattedSimDate(): string {
     return this.simulationService.getCurrentTime().toLocaleDateString();
+  }
+
+  getFormattedSystemTime(): string {
+    return this.systemTime.toLocaleString();
+  }
+
+  getFormattedSimDateTime(): string {
+    const time = this.simulationService.getCurrentTime();
+    return time.toLocaleDateString() + ' ' + time.toLocaleTimeString();
   }
 }

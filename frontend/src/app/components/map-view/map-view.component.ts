@@ -254,9 +254,10 @@ export class MapViewComponent implements OnInit, OnDestroy, AfterViewInit {
   simulationDuration: number = 24 * 3600;
 
   private map!: L.Map;
+  private wmsLayer: L.TileLayer.WMS | null = null;
 
   get mapImageUrl(): string {
-    return this.apiService.getMapImageUrl();
+    return this.apiService.getMapImageUrl(this.mapMetadata || undefined);
   }
 
   constructor(
@@ -336,14 +337,9 @@ export class MapViewComponent implements OnInit, OnDestroy, AfterViewInit {
       crs: L.CRS.EPSG4326
     });
 
-    L.tileLayer.wms('http://localhost:8080/geoserver/vishal/wms', {
-      layers: 'vishal:NE2_HR_LC_SR_W_DR',
-      format: 'image/jpeg',
-      transparent: false,
-      version: '1.1.0',
-      crs: L.CRS.EPSG4326,
-      attribution: 'GeoServer WMS'
-    }).addTo(this.map);
+    if (this.mapMetadata && this.mapMetadata.geoserverUrl) {
+      this.addWmsTileLayer(this.mapMetadata.geoserverUrl, this.mapMetadata.geoserverLayers || 'vishal:NE2_HR_LC_SR_W_DR');
+    }
 
     this.map.on('zoomend moveend move viewreset', () => {
       this.projectCoordinatesToSvg();
@@ -418,11 +414,29 @@ export class MapViewComponent implements OnInit, OnDestroy, AfterViewInit {
     this.apiService.getMapMetadata().subscribe({
       next: (meta) => {
         this.mapMetadata = meta;
+        if (this.map && meta.geoserverUrl) {
+          this.addWmsTileLayer(meta.geoserverUrl, meta.geoserverLayers || 'vishal:NE2_HR_LC_SR_W_DR');
+        }
       },
       error: (err) => {
         console.error('Failed to load map metadata', err);
       }
     });
+  }
+
+  addWmsTileLayer(url: string, layers: string) {
+    if (!this.map) return;
+    if (this.wmsLayer) {
+      this.map.removeLayer(this.wmsLayer);
+    }
+    this.wmsLayer = L.tileLayer.wms(url, {
+      layers: layers,
+      format: 'image/jpeg',
+      transparent: false,
+      version: '1.1.0',
+      crs: L.CRS.EPSG4326,
+      attribution: 'GeoServer WMS'
+    }).addTo(this.map);
   }
 
   loadPlans() {

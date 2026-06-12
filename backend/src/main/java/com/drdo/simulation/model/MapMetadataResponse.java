@@ -9,6 +9,9 @@ public class MapMetadataResponse {
     private int originalWidth;
     private int originalHeight;
 
+    private String geoserverUrl;
+    private String geoserverLayers;
+
     public MapMetadataResponse() {}
 
     public MapMetadataResponse(boolean georeferenced, double minLon, double maxLon, double minLat, double maxLat, int originalWidth, int originalHeight) {
@@ -19,6 +22,18 @@ public class MapMetadataResponse {
         this.maxLat = maxLat;
         this.originalWidth = originalWidth;
         this.originalHeight = originalHeight;
+    }
+
+    public MapMetadataResponse(boolean georeferenced, double minLon, double maxLon, double minLat, double maxLat, int originalWidth, int originalHeight, String geoserverUrl, String geoserverLayers) {
+        this.georeferenced = georeferenced;
+        this.minLon = minLon;
+        this.maxLon = maxLon;
+        this.minLat = minLat;
+        this.maxLat = maxLat;
+        this.originalWidth = originalWidth;
+        this.originalHeight = originalHeight;
+        this.geoserverUrl = geoserverUrl;
+        this.geoserverLayers = geoserverLayers;
     }
 
     public boolean isGeoreferenced() {
@@ -75,5 +90,21 @@ public class MapMetadataResponse {
 
     public void setOriginalHeight(int originalHeight) {
         this.originalHeight = originalHeight;
+    }
+
+    public String getGeoserverUrl() {
+        return geoserverUrl;
+    }
+
+    public void setGeoserverUrl(String geoserverUrl) {
+        this.geoserverUrl = geoserverUrl;
+    }
+
+    public String getGeoserverLayers() {
+        return geoserverLayers;
+    }
+
+    public void setGeoserverLayers(String geoserverLayers) {
+        this.geoserverLayers = geoserverLayers;
     }
 }

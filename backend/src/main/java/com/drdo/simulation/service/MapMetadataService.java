@@ -14,6 +14,12 @@ import java.net.URL;
 @Service
 public class MapMetadataService {
 
+    @org.springframework.beans.factory.annotation.Value("${geoserver.url}")
+    private String geoserverUrl;
+
+    @org.springframework.beans.factory.annotation.Value("${geoserver.layers}")
+    private String geoserverLayers;
+
     private MapMetadataResponse metadata;
     private byte[] cachedMapImage;
     private boolean isUsingFallback = false;
@@ -28,7 +34,9 @@ public class MapMetadataService {
                 -90.0,   // minLat
                 90.0,    // maxLat
                 21600,   // originalWidth
-                10800    // originalHeight
+                10800,   // originalHeight
+                geoserverUrl,
+                geoserverLayers
         );
 
         byte[] geoserverMap = fetchFromGeoServer();
@@ -64,16 +72,16 @@ public class MapMetadataService {
     }
 
     private byte[] fetchFromGeoServer() {
-        String geoserverUrl = "http://localhost:8080/geoserver/vishal/wms"
+        String queryUrl = this.geoserverUrl
                 + "?service=WMS&version=1.1.0&request=GetMap"
-                + "&layers=vishal:NE2_HR_LC_SR_W_DR"
+                + "&layers=" + this.geoserverLayers
                 + "&bbox=-180.0,-90.0,180.0,90.0"
                 + "&width=4096&height=2048"
                 + "&srs=EPSG:4326&styles="
                 + "&format=image/jpeg";
         try {
-            System.out.println("Attempting to fetch map image from GeoServer WMS: " + geoserverUrl);
-            URL url = new URL(geoserverUrl);
+            System.out.println("Attempting to fetch map image from GeoServer WMS: " + queryUrl);
+            URL url = new URL(queryUrl);
             HttpURLConnection conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
             conn.setConnectTimeout(4000);

@@ -18,6 +18,8 @@ export interface MapMetadata {
   maxLat: number;
   originalWidth: number;
   originalHeight: number;
+  geoserverUrl?: string;
+  geoserverLayers?: string;
 }
 
 export interface Plan {
@@ -97,7 +99,9 @@ export class ApiService {
   }
 
   // Get Map Image URL
-  getMapImageUrl(): string {
-    return 'http://localhost:8080/geoserver/vishal/wms?service=WMS&version=1.1.0&request=GetMap&layers=vishal:NE2_HR_LC_SR_W_DR&bbox=-180.0,-90.0,180.0,90.0&width=2048&height=1024&srs=EPSG:4326&styles=&format=image/jpeg';
+  getMapImageUrl(meta?: MapMetadata): string {
+    const url = meta?.geoserverUrl || 'http://localhost:8080/geoserver/vishal/wms';
+    const layers = meta?.geoserverLayers || 'vishal:NE2_HR_LC_SR_W_DR';
+    return `${url}?service=WMS&version=1.1.0&request=GetMap&layers=${layers}&bbox=-180.0,-90.0,180.0,90.0&width=2048&height=1024&srs=EPSG:4326&styles=&format=image/jpeg`;
   }
 }
