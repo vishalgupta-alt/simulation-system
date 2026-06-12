@@ -36,7 +36,7 @@ import {
 })
 export class App implements OnInit, OnDestroy {
   title = 'Tactical Simulation Command Center';
-  activeTab: 'plan' | 'deploy' | 'charts' = 'deploy';
+  activeTab: 'plan' | 'deploy' | 'charts' = 'plan';
   systemTime: Date = new Date();
   private systemTimeInterval: any;
 

@@ -15,7 +15,10 @@ import {
   LucideTrash2,
   LucideMapPin,
   LucideRoute,
-  LucideList
+  LucideList,
+  LucideMinimize2,
+  LucideMaximize2,
+  LucidePencil
 } from '@lucide/angular';
 
 Chart.register(...registerables);
@@ -43,7 +46,10 @@ interface WaypointFuelDetail {
     LucideTrash2,
     LucideMapPin,
     LucideRoute,
-    LucideList
+    LucideList,
+    LucideMinimize2,
+    LucideMaximize2,
+    LucidePencil
   ],
   templateUrl: './map-view.component.html',
   styles: [`
@@ -217,6 +223,32 @@ export class MapViewComponent implements OnInit, OnDestroy, AfterViewInit {
   plansList: Plan[] = [];
   ellipsesList: EllipseZone[] = [];
   symbolStates: SymbolState[] = [];
+
+  isPlanCollapsed: boolean = false;
+  isDeployCollapsed: boolean = false;
+  isChartsCollapsed: boolean = false;
+
+  currentFuelChartIndex: number = -1; // -1 means All, otherwise index in plansList
+  editingPlanId: string | null = null;
+  editingPlanWaypoints: Waypoint[] = [];
+
+  nextFuelChart() {
+    if (this.plansList.length === 0) return;
+    this.currentFuelChartIndex++;
+    if (this.currentFuelChartIndex >= this.plansList.length) {
+      this.currentFuelChartIndex = -1;
+    }
+    this.updateCharts();
+  }
+
+  prevFuelChart() {
+    if (this.plansList.length === 0) return;
+    this.currentFuelChartIndex--;
+    if (this.currentFuelChartIndex < -1) {
+      this.currentFuelChartIndex = this.plansList.length - 1;
+    }
+    this.updateCharts();
+  }
 
   // Dragging states
   draggingEllipse: EllipseZone | null = null;
@@ -443,6 +475,9 @@ export class MapViewComponent implements OnInit, OnDestroy, AfterViewInit {
     this.apiService.getPlans().subscribe(plans => {
       this.plansList = plans;
       this.simulationService.setPlans(plans);
+      if (this.currentFuelChartIndex >= plans.length) {
+        this.currentFuelChartIndex = -1;
+      }
       this.projectCoordinatesToSvg();
     });
   }
@@ -514,6 +549,82 @@ export class MapViewComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
+  startEditPlan(plan: Plan, event?: Event) {
+    if (event) event.stopPropagation();
+    this.editingPlanId = plan.id || null;
+    this.newPlanName = plan.name;
+    this.newPlanSpeed = plan.speed;
+    if (plan.startTime) {
+      this.newPlanStartTime = plan.startTime.substring(0, 16);
+    } else {
+      this.newPlanStartTime = '';
+    }
+    this.newPlanFuelLimit = plan.fuelLimit || 1000;
+    this.newPlanFuelConsumption = plan.fuelConsumption || 1.0;
+    this.editingPlanWaypoints = [...plan.waypoints];
+    this.isDrawingRoute = false;
+    this.drawingWaypoints = [];
+  }
+
+  cancelEditPlan() {
+    this.editingPlanId = null;
+    this.editingPlanWaypoints = [];
+    this.newPlanName = '';
+    this.newPlanSpeed = 15;
+    this.newPlanStartTime = '2026-06-10T08:00';
+    this.newPlanFuelLimit = 1000;
+    this.newPlanFuelConsumption = 1.0;
+    this.isDrawingRoute = false;
+    this.drawingWaypoints = [];
+  }
+
+  startReplottingRoute() {
+    this.isDrawingRoute = true;
+    this.drawingWaypoints = [];
+    (window as any).isDrawingMapRoute = true;
+    (window as any).tempWaypoints = [];
+  }
+
+  cancelReplottingRoute() {
+    this.isDrawingRoute = false;
+    this.drawingWaypoints = [];
+    (window as any).isDrawingMapRoute = false;
+    (window as any).tempWaypoints = [];
+  }
+
+  saveEditedPlan() {
+    const waypoints = this.isDrawingRoute ? [...this.drawingWaypoints] : [...this.editingPlanWaypoints];
+    if (waypoints.length < 2) {
+      alert('Plan must have at least 2 waypoints.');
+      return;
+    }
+    if (!this.newPlanName) {
+      alert('Please enter a Plan Name.');
+      return;
+    }
+
+    const updatedPlan: Plan = {
+      id: this.editingPlanId!,
+      name: this.newPlanName,
+      speed: this.newPlanSpeed,
+      startTime: new Date(this.newPlanStartTime).toISOString(),
+      waypoints: waypoints,
+      fuelLimit: this.newPlanFuelLimit,
+      fuelConsumption: this.newPlanFuelConsumption
+    };
+
+    this.apiService.updatePlan(this.editingPlanId!, updatedPlan).subscribe({
+      next: () => {
+        this.loadPlans();
+        this.cancelEditPlan();
+      },
+      error: (err) => {
+        console.error('Failed to update plan', err);
+        alert('Error saving plan changes to backend');
+      }
+    });
+  }
+
   onMapClick(event: MouseEvent) {
     if (this.isDrawingRoute && (window as any).isDrawingMapRoute && this.map) {
       const latlng = this.map.mouseEventToLatLng(event);
@@ -570,10 +681,23 @@ export class MapViewComponent implements OnInit, OnDestroy, AfterViewInit {
     const centerLat = center.lat;
     const centerLon = center.lng;
     
-    // Increased size to match original pixel-relative size (~90px by ~60px at default zoom 3)
-    const rxDeg = 15.0;
-    const ryDeg = 10.0;
+    // Compute default size based on 10% of map viewport height
+    const mapSize = this.map.getSize();
+    const ryPixels = mapSize.y > 0 ? mapSize.y * 0.1 : 120; // 10% of height, fallback if 0
+    const rxPixels = ryPixels * 1.5; // X radius is 1.5x of Y radius for default ellipse ratio
     
+    const centerPoint = this.map.latLngToContainerPoint(center);
+    
+    // Convert Y radius pixel offset to GPS degrees
+    const topPoint = L.point(centerPoint.x, centerPoint.y - ryPixels);
+    const topLatLng = this.map.containerPointToLatLng(topPoint);
+    const ryDeg = Math.abs(topLatLng.lat - centerLat);
+
+    // Convert X radius pixel offset to GPS degrees
+    const rightPoint = L.point(centerPoint.x + rxPixels, centerPoint.y);
+    const rightLatLng = this.map.containerPointToLatLng(rightPoint);
+    const rxDeg = Math.abs(rightLatLng.lng - centerLon);
+
     const offsets = [
       { x: rxDeg, y: 0 },                    // P0 (Right Anchor)
       { x: rxDeg * 0.9, y: ryDeg * 0.9 },    // P1 (Control Handle 1)
@@ -845,6 +969,46 @@ export class MapViewComponent implements OnInit, OnDestroy, AfterViewInit {
     this.selectedPlanWaypointsFuel = details;
   }
 
+  getPlanCurrentWaypointProgress(plan: Plan, state: SymbolState): number {
+    if (!state.isStarted) return 0;
+    const wps = plan.waypoints || [];
+    if (wps.length === 0) return 0;
+    if (state.isFinished) return wps.length - 1;
+
+    const segmentIdx = state.activeSegmentIndex;
+    if (segmentIdx < 0 || segmentIdx >= wps.length - 1) return 0;
+
+    const getLon = (wp: Waypoint) => {
+      if (wp.longitude !== undefined && wp.longitude !== null) return wp.longitude;
+      return -180.0 + (wp.x / 1000) * 360.0;
+    };
+    const getLat = (wp: Waypoint) => {
+      if (wp.latitude !== undefined && wp.latitude !== null) return wp.latitude;
+      return 90.0 - (wp.y / 1000) * 180.0;
+    };
+
+    let distBeforeSegment = 0;
+    for (let i = 0; i < segmentIdx; i++) {
+      const p1 = wps[i];
+      const p2 = wps[i + 1];
+      const dLon = getLon(p2) - getLon(p1);
+      const dLat = getLat(p2) - getLat(p1);
+      distBeforeSegment += Math.sqrt(dLon * dLon + dLat * dLat);
+    }
+
+    const p1 = wps[segmentIdx];
+    const p2 = wps[segmentIdx + 1];
+    const dLon = getLon(p2) - getLon(p1);
+    const dLat = getLat(p2) - getLat(p1);
+    const activeSegLen = Math.sqrt(dLon * dLon + dLat * dLat);
+
+    if (activeSegLen === 0) return segmentIdx;
+
+    const distOnSegment = state.distanceTraveled - distBeforeSegment;
+    const ratio = Math.max(0, Math.min(1, distOnSegment / activeSegLen));
+    return segmentIdx + ratio;
+  }
+
   onPlanSelectChange() {
     this.calculateWaypointFuelDetails();
   }
@@ -857,31 +1021,76 @@ export class MapViewComponent implements OnInit, OnDestroy, AfterViewInit {
     const ctx = this._fuelCanvas.nativeElement.getContext('2d');
     if (!ctx) return;
 
-    const timeIndicatorPlugin = {
-      id: 'timeIndicator',
+    const progressIndicatorPlugin = {
+      id: 'progressIndicator',
       afterDraw: (chart: any) => {
         if (this.activeTab !== 'charts') return;
-
-        const offset = this.simulationService.getCurrentTimeOffset();
-        const duration = this.simulationDuration;
-        if (duration <= 0) return;
-
-        const percentage = offset / duration;
         const ctx2 = chart.ctx;
         const xAxis = chart.scales ? chart.scales.x : null;
         const yAxis = chart.scales ? chart.scales.y : null;
         if (!xAxis || !yAxis || xAxis.left === undefined || xAxis.width === undefined) return;
 
-        const xPos = xAxis.left + percentage * xAxis.width;
-
         ctx2.save();
-        ctx2.beginPath();
-        ctx2.moveTo(xPos, yAxis.top);
-        ctx2.lineTo(xPos, yAxis.bottom);
-        ctx2.lineWidth = 1.5;
-        ctx2.strokeStyle = '#ef4444';
-        ctx2.setLineDash([4, 4]);
-        ctx2.stroke();
+
+        const visiblePlans = this.currentFuelChartIndex === -1 
+          ? this.plansList.map((p, i) => ({ plan: p, origIdx: i, datasetIdx: i }))
+          : [ { plan: this.plansList[this.currentFuelChartIndex], origIdx: this.currentFuelChartIndex, datasetIdx: 0 } ];
+
+        visiblePlans.forEach(({ plan, origIdx, datasetIdx }) => {
+          const isVisible = chart.isDatasetVisible(datasetIdx);
+          if (!isVisible) return;
+
+          const state = this.symbolStates.find(s => s.planId === plan.id);
+          if (!state) return;
+
+          // Calculate progress index
+          const progressVal = this.getPlanCurrentWaypointProgress(plan, state);
+
+          // Interpolate X position
+          const floorVal = Math.floor(progressVal);
+          const ceilVal = Math.ceil(progressVal);
+          const pixel1 = xAxis.getPixelForValue(floorVal);
+          const pixel2 = xAxis.getPixelForValue(ceilVal);
+          const xPos = pixel1 + (pixel2 - pixel1) * (progressVal - floorVal);
+
+          // Interpolate Y position (fuel remaining)
+          const dataset = chart.data.datasets[datasetIdx];
+          if (!dataset || !dataset.data) return;
+          const fuel1 = dataset.data[floorVal];
+          const fuel2 = dataset.data[ceilVal] !== undefined ? dataset.data[ceilVal] : fuel1;
+          const currentFuel = fuel1 + (fuel2 - fuel1) * (progressVal - floorVal);
+          const yPos = yAxis.getPixelForValue(currentFuel);
+
+          const color = this.getColors(origIdx);
+
+          // 1. Draw a vertical line for this plan
+          ctx2.beginPath();
+          ctx2.moveTo(xPos, yAxis.top);
+          ctx2.lineTo(xPos, yAxis.bottom);
+          ctx2.lineWidth = 1.5;
+          ctx2.strokeStyle = color + '88'; // Semi-transparent
+          ctx2.setLineDash([3, 3]);
+          ctx2.stroke();
+
+          // 2. Draw a small circle at the current fuel intersection point on the line
+          ctx2.beginPath();
+          ctx2.arc(xPos, yPos, 5.5, 0, 2 * Math.PI);
+          ctx2.fillStyle = state.isOutofFuel ? '#ef4444' : color;
+          ctx2.strokeStyle = '#ffffff';
+          ctx2.lineWidth = 1.5;
+          ctx2.fill();
+          ctx2.stroke();
+
+          // 3. Draw a text tag showing the plan name above the circle
+          ctx2.fillStyle = '#ffffff';
+          ctx2.font = 'bold 8px Outfit, sans-serif';
+          ctx2.textAlign = 'center';
+          ctx2.shadowColor = '#000000';
+          ctx2.shadowBlur = 3;
+          ctx2.fillText(plan.name, xPos, yPos - 8);
+          ctx2.shadowBlur = 0; // reset
+        });
+
         ctx2.restore();
       }
     };
@@ -915,7 +1124,7 @@ export class MapViewComponent implements OnInit, OnDestroy, AfterViewInit {
           }
         }
       },
-      plugins: [timeIndicatorPlugin]
+      plugins: [progressIndicatorPlugin]
     });
     this.updateCharts();
   }
@@ -960,82 +1169,96 @@ export class MapViewComponent implements OnInit, OnDestroy, AfterViewInit {
   updateCharts() {
     if (!this.fuelChart || !this.distanceChart || this.plansList.length === 0) return;
 
-    const duration = this.simulationDuration;
-    const intervals = 10;
-    const step = duration / intervals;
-    const labels: string[] = [];
-    const timePoints: number[] = [];
+    let labels: string[] = [];
+    let fuelDatasets: any[] = [];
 
-    for (let i = 0; i <= intervals; i++) {
-      const sec = Math.round(i * step);
-      timePoints.push(sec);
-      
-      if (duration < 3600) {
-        labels.push(`${Math.round(sec / 60)}m`);
-      } else {
-        const hrs = Math.round((sec / 3600) * 10) / 10;
-        labels.push(`${hrs}h`);
-      }
-    }
+    const getLon = (wp: Waypoint) => {
+      if (wp.longitude !== undefined && wp.longitude !== null) return wp.longitude;
+      return -180.0 + (wp.x / 1000) * 360.0;
+    };
 
-    const fuelDatasets = this.plansList.map((plan, idx) => {
-      const color = this.getColors(idx);
-      const data = timePoints.map(simSeconds => {
-        const planStart = new Date(plan.startTime);
-        const gameStart = this.simulationService.getGameStartDate();
-        const planStartOffset = (planStart.getTime() - gameStart.getTime()) / 1000;
+    const getLat = (wp: Waypoint) => {
+      if (wp.latitude !== undefined && wp.latitude !== null) return wp.latitude;
+      return 90.0 - (wp.y / 1000) * 180.0;
+    };
 
-        if (simSeconds < planStartOffset) {
-          return 1000.0;
+    if (this.currentFuelChartIndex === -1) {
+      // All Plans Mode
+      const maxWaypoints = Math.max(...this.plansList.map(p => p.waypoints?.length || 0), 0);
+      labels = Array.from({ length: maxWaypoints }, (_, i) => `WP ${i + 1}`);
+
+      fuelDatasets = this.plansList.map((plan, idx) => {
+        const color = this.getColors(idx);
+        const data: number[] = [];
+        const wps = plan.waypoints || [];
+        if (wps.length > 0) {
+          data.push(plan.fuelLimit || 1000.0);
         }
 
-        const timeMoving = simSeconds - planStartOffset;
-        
-        let totalPathLength = 0;
-        const waypoints = plan.waypoints || [];
-        
-        const getLon = (wp: Waypoint) => {
-          if (wp.longitude !== undefined && wp.longitude !== null) return wp.longitude;
-          return -180.0 + (wp.x / 1000) * 360.0;
-        };
-
-        const getLat = (wp: Waypoint) => {
-          if (wp.latitude !== undefined && wp.latitude !== null) return wp.latitude;
-          return 90.0 - (wp.y / 1000) * 180.0;
-        };
-
-        for (let i = 0; i < waypoints.length - 1; i++) {
-          const p1 = waypoints[i];
-          const p2 = waypoints[i + 1];
+        let cumulativeDist = 0;
+        for (let i = 1; i < wps.length; i++) {
+          const p1 = wps[i - 1];
+          const p2 = wps[i];
           const dLon = getLon(p2) - getLon(p1);
           const dLat = getLat(p2) - getLat(p1);
-          totalPathLength += Math.sqrt(dLon * dLon + dLat * dLat);
+          const dist = Math.sqrt(dLon * dLon + dLat * dLat);
+          cumulativeDist += dist;
+
+          const speedInDegSec = plan.speed / 216000.0;
+          const timeToReachSeconds = speedInDegSec > 0 ? cumulativeDist / speedInDegSec : 0;
+          const fuelConsumptionPerSec = (plan.fuelConsumption || 1.0) / 60.0;
+          const fuelUsed = timeToReachSeconds * fuelConsumptionPerSec;
+          const fuelRemaining = Math.max(0, (plan.fuelLimit || 1000.0) - fuelUsed);
+          data.push(Math.round(fuelRemaining * 10) / 10);
         }
+
+        return {
+          label: plan.name,
+          data: data,
+          borderColor: color,
+          backgroundColor: color + '15',
+          tension: 0.15,
+          fill: false
+        };
+      });
+    } else {
+      // Single Selected Plan Mode
+      const plan = this.plansList[this.currentFuelChartIndex];
+      const wps = plan.waypoints || [];
+      labels = wps.map((wp, i) => wp.name || `WP ${i + 1}`);
+
+      const color = this.getColors(this.currentFuelChartIndex);
+      const data: number[] = [];
+      if (wps.length > 0) {
+        data.push(plan.fuelLimit || 1000.0);
+      }
+
+      let cumulativeDist = 0;
+      for (let i = 1; i < wps.length; i++) {
+        const p1 = wps[i - 1];
+        const p2 = wps[i];
+        const dLon = getLon(p2) - getLon(p1);
+        const dLat = getLat(p2) - getLat(p1);
+        const dist = Math.sqrt(dLon * dLon + dLat * dLat);
+        cumulativeDist += dist;
 
         const speedInDegSec = plan.speed / 216000.0;
-        const timeToDestination = speedInDegSec > 0 ? totalPathLength / speedInDegSec : 0;
-        const fuelLimit = plan.fuelLimit || 1000.0;
-        const fuelConsumption = plan.fuelConsumption || 1.0;
-        const fuelConsumptionPerSec = fuelConsumption / 60.0;
-        
-        if (timeMoving >= timeToDestination) {
-          const fuelUsed = timeToDestination * fuelConsumptionPerSec;
-          return Math.max(0, fuelLimit - fuelUsed);
-        }
+        const timeToReachSeconds = speedInDegSec > 0 ? cumulativeDist / speedInDegSec : 0;
+        const fuelConsumptionPerSec = (plan.fuelConsumption || 1.0) / 60.0;
+        const fuelUsed = timeToReachSeconds * fuelConsumptionPerSec;
+        const fuelRemaining = Math.max(0, (plan.fuelLimit || 1000.0) - fuelUsed);
+        data.push(Math.round(fuelRemaining * 10) / 10);
+      }
 
-        const fuelUsed = timeMoving * fuelConsumptionPerSec;
-        return Math.max(0, fuelLimit - fuelUsed);
-      });
-
-      return {
+      fuelDatasets = [{
         label: plan.name,
         data: data,
         borderColor: color,
         backgroundColor: color + '15',
         tension: 0.15,
         fill: false
-      };
-    });
+      }];
+    }
 
     this.fuelChart.data.labels = labels;
     this.fuelChart.data.datasets = fuelDatasets;
@@ -1044,16 +1267,6 @@ export class MapViewComponent implements OnInit, OnDestroy, AfterViewInit {
     const distanceData = this.plansList.map(plan => {
       let totalPathLength = 0;
       const waypoints = plan.waypoints || [];
-      
-      const getLon = (wp: Waypoint) => {
-        if (wp.longitude !== undefined && wp.longitude !== null) return wp.longitude;
-        return -180.0 + (wp.x / 1000) * 360.0;
-      };
-
-      const getLat = (wp: Waypoint) => {
-        if (wp.latitude !== undefined && wp.latitude !== null) return wp.latitude;
-        return 90.0 - (wp.y / 1000) * 180.0;
-      };
 
       for (let i = 0; i < waypoints.length - 1; i++) {
         const p1 = waypoints[i];

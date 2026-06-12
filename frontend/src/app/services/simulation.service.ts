@@ -121,8 +121,14 @@ export class SimulationService {
       const speedInDegSec = plan.speed / 216000.0;
       const travelTimeSeconds = speedInDegSec > 0 ? totalPathLength / speedInDegSec : 0;
       
-      // The timeline covers the full travel duration of the route, not capped at fuel depletion.
-      const endMs = startMs + travelTimeSeconds * 1000;
+      // Cap at fuel depletion if it occurs before arriving at the destination
+      const fuelLimit = plan.fuelLimit || 1000.0;
+      const fuelConsumption = plan.fuelConsumption || 1.0;
+      const fuelConsumptionPerSec = fuelConsumption / 60.0;
+      const fuelExhaustionSeconds = fuelConsumptionPerSec > 0 ? (fuelLimit / fuelConsumptionPerSec) : Infinity;
+
+      const activeDurationSeconds = Math.min(travelTimeSeconds, fuelExhaustionSeconds);
+      const endMs = startMs + activeDurationSeconds * 1000;
 
       if (endMs > maxEndMs) {
         maxEndMs = endMs;

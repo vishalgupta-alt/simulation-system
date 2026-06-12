@@ -4,14 +4,14 @@
     <div id="map" style="width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1;"></div>
 
     <!-- Drawing Instruction Overlay -->
-    <div *ngIf="isDrawingRoute" 
-         style="position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: rgba(11, 15, 25, 0.9); border: 1px solid var(--color-warning); padding: 8px 16px; border-radius: 20px; font-size: 13px; color: var(--color-warning); pointer-events: none; z-index: 30; box-shadow: var(--shadow-premium);">
+    <div *ngIf="isDrawingRoute"
+      style="position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: rgba(11, 15, 25, 0.9); border: 1px solid var(--color-warning); padding: 8px 16px; border-radius: 20px; font-size: 13px; color: var(--color-warning); pointer-events: none; z-index: 30; box-shadow: var(--shadow-premium);">
       🗺️ Click anywhere on the map to add Waypoint {{drawingWaypoints.length + 1}}
     </div>
 
     <!-- Real-time Coordinates HUD Overlay -->
-    <div class="glass-panel" 
-         style="position: absolute; top: 12px; right: 12px; padding: 6px 12px; border-radius: 8px; font-family: var(--font-mono); font-size: 11px; z-index: 30; pointer-events: none; border-color: rgba(6, 182, 212, 0.4); display: flex; flex-direction: column; gap: 2px;">
+    <div class="glass-panel"
+      style="position: absolute; top: 12px; right: 12px; padding: 6px 12px; border-radius: 8px; font-family: var(--font-mono); font-size: 11px; z-index: 30; pointer-events: none; border-color: rgba(6, 182, 212, 0.4); display: flex; flex-direction: column; gap: 2px;">
       <div style="display: flex; align-items: center; gap: 6px;">
         <span style="color: var(--color-cyan); font-weight: bold;">COORD SYSTEM:</span>
         <span style="color: #ffffff; font-weight: 500;">GEOSERVER WMS</span>
@@ -30,23 +30,33 @@
     <!-- Hover Tooltips -->
     <div *ngIf="hoveredSymbol" class="tooltip-card" [style.left.px]="tooltipX" [style.top.px]="tooltipY">
       <h4 style="font-weight:600; margin-bottom:4px; color:var(--color-primary);">{{hoveredSymbol.planName}}</h4>
-      <div>Status: 
+      <div>Status:
         <span *ngIf="hoveredSymbol.isFinished" style="color:var(--color-success);">Finished Destination</span>
         <span *ngIf="hoveredSymbol.isOutofFuel" style="color:var(--color-danger);">Out of Fuel (Stopped)</span>
-        <span *ngIf="!hoveredSymbol.isFinished && !hoveredSymbol.isOutofFuel" style="color:var(--color-warning);">In Transit</span>
+        <span *ngIf="!hoveredSymbol.isFinished && !hoveredSymbol.isOutofFuel" style="color:var(--color-warning);">In
+          Transit</span>
       </div>
-      <div>Distance Covered: <span style="font-family:var(--font-mono);">{{hoveredSymbol.distanceTraveled.toFixed(1)}} deg</span></div>
-      <div style="margin-top:2px;">GPS: <span style="font-family:var(--font-mono); color:var(--color-cyan);">{{getSymbolGeoCoords(hoveredSymbol)}}</span></div>
+      <div>Distance Covered: <span style="font-family:var(--font-mono);">{{hoveredSymbol.distanceTraveled.toFixed(1)}}
+          deg</span></div>
+      <div style="margin-top:2px;">GPS: <span
+          style="font-family:var(--font-mono); color:var(--color-cyan);">{{getSymbolGeoCoords(hoveredSymbol)}}</span>
+      </div>
       <div style="margin-top:2px; display:flex; align-items:center; gap:4px;">
-        ⛽ Fuel: <span style="font-family:var(--font-mono); font-weight:bold;" [style.color]="hoveredSymbol.isOutofFuel ? 'var(--color-danger)' : 'var(--color-success)'">{{hoveredSymbol.fuelRemaining}} / {{hoveredSymbol.fuelLimit}} Lit</span>
+        ⛽ Fuel: <span style="font-family:var(--font-mono); font-weight:bold;"
+          [style.color]="hoveredSymbol.isOutofFuel ? 'var(--color-danger)' : 'var(--color-success)'">{{hoveredSymbol.fuelRemaining}}
+          / {{hoveredSymbol.fuelLimit}} Lit</span>
       </div>
     </div>
 
-    <div *ngIf="hoveredWaypoint && hoveredWaypointPlan" class="tooltip-card" [style.left.px]="tooltipX" [style.top.px]="tooltipY">
+    <div *ngIf="hoveredWaypoint && hoveredWaypointPlan" class="tooltip-card" [style.left.px]="tooltipX"
+      [style.top.px]="tooltipY">
       <h4 style="font-weight:600; margin-bottom:2px; color:#ffffff;">{{hoveredWaypoint.name}}</h4>
-      <div style="font-size:10px; color:var(--color-text-secondary); margin-bottom:2px;">Plan: <span style="color:var(--color-primary); font-weight:600;">{{hoveredWaypointPlan.name}}</span></div>
-      <div *ngIf="hoveredWaypoint.latitude !== undefined && hoveredWaypoint.longitude !== undefined" style="margin-top:2px; font-weight:bold; color:var(--color-cyan);">
-        GPS: <span style="font-family:var(--font-mono);">{{formatGeoCoords(hoveredWaypoint.latitude, hoveredWaypoint.longitude)}}</span>
+      <div style="font-size:10px; color:var(--color-text-secondary); margin-bottom:2px;">Plan: <span
+          style="color:var(--color-primary); font-weight:600;">{{hoveredWaypointPlan.name}}</span></div>
+      <div *ngIf="hoveredWaypoint.latitude !== undefined && hoveredWaypoint.longitude !== undefined"
+        style="margin-top:2px; font-weight:bold; color:var(--color-cyan);">
+        GPS: <span style="font-family:var(--font-mono);">{{formatGeoCoords(hoveredWaypoint.latitude,
+          hoveredWaypoint.longitude)}}</span>
       </div>
     </div>
 
@@ -55,79 +65,142 @@
       <div>Type: <span style="color:var(--color-text-secondary);">Bezier Search Zone</span></div>
       <div>Radius X: <span style="font-family:var(--font-mono);">{{hoveredEllipse.radiusX}} deg</span></div>
       <div>Radius Y: <span style="font-family:var(--font-mono);">{{hoveredEllipse.radiusY}} deg</span></div>
-      <div style="font-size:9px; color:var(--color-text-muted); margin-top:4px;">Drag center to move. Drag handles to reshape. Double-click to Delete.</div>
+      <div style="font-size:9px; color:var(--color-text-muted); margin-top:4px;">Drag center to move. Drag handles to
+        reshape. Double-click to Delete.</div>
     </div>
 
     <!-- Floating PLAN Window -->
-    <div *ngIf="showPlanWindow" class="glass-panel floating-plan-panel" style="z-index: 20;">
-      <h3 style="font-size: 14px; font-weight: 700; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 8px; color: #ffffff; display: flex; align-items: center; justify-content: space-between;">
+    <div *ngIf="activeTab === 'plan' && !isPlanCollapsed" class="glass-panel floating-plan-panel" style="z-index: 20;">
+      <h3
+        style="font-size: 14px; font-weight: 700; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 8px; color: #ffffff; display: flex; align-items: center; justify-content: space-between;">
         <span>PLAN</span>
-        <span style="font-size: 10px; color: var(--color-text-secondary); font-weight: normal;">(Floating Overlay)</span>
+        <button (click)="isPlanCollapsed = true"
+          style="background: none; border: none; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; padding: 4px;"
+          title="Collapse">
+          <svg lucideMinimize2 style="width: 14px; height: 14px;"></svg>
+        </button>
       </h3>
 
       <div style="display: flex; flex-direction: column; gap: 8px;">
         <div>
-          <label style="font-size: 10px; color: var(--color-text-secondary); margin-bottom: 2px; display: block;">Plan Name</label>
-          <input type="text" class="form-input" style="padding: 6px 10px; font-size:12px;" [(ngModel)]="newPlanName" placeholder="e.g. Flight 101" [disabled]="isDrawingRoute" />
+          <label style="font-size: 10px; color: var(--color-text-secondary); margin-bottom: 2px; display: block;">Plan
+            Name</label>
+          <input type="text" class="form-input" style="padding: 6px 10px; font-size:12px;" [(ngModel)]="newPlanName"
+            placeholder="e.g. Flight 101" [disabled]="isDrawingRoute" />
         </div>
 
         <div style="display: flex; gap: 8px;">
           <div style="flex: 1;">
-            <label style="font-size: 10px; color: var(--color-text-secondary); margin-bottom: 2px; display: block;">Speed (knots)</label>
-            <input type="number" class="form-input" style="padding: 6px 10px; font-size:12px;" [(ngModel)]="newPlanSpeed" min="1" max="200" [disabled]="isDrawingRoute" />
+            <label
+              style="font-size: 10px; color: var(--color-text-secondary); margin-bottom: 2px; display: block;">Speed
+              (knots)</label>
+            <input type="number" class="form-input" style="padding: 6px 10px; font-size:12px;"
+              [(ngModel)]="newPlanSpeed" min="1" max="200" [disabled]="isDrawingRoute" />
           </div>
           <div style="flex: 1.5;">
-            <label style="font-size: 10px; color: var(--color-text-secondary); margin-bottom: 2px; display: block;">Start Time</label>
-            <input type="datetime-local" class="form-input" style="padding: 6px 10px; font-size:12px;" [(ngModel)]="newPlanStartTime" [disabled]="isDrawingRoute" />
+            <label
+              style="font-size: 10px; color: var(--color-text-secondary); margin-bottom: 2px; display: block;">Start
+              Time</label>
+            <input type="datetime-local" class="form-input" style="padding: 6px 10px; font-size:12px;"
+              [(ngModel)]="newPlanStartTime" [disabled]="isDrawingRoute" />
           </div>
         </div>
 
         <div style="display: flex; gap: 8px; margin-top: 4px;">
           <div style="flex: 1;">
-            <label style="font-size: 10px; color: var(--color-text-secondary); margin-bottom: 2px; display: block;">Fuel Limit (Lit)</label>
-            <input type="number" class="form-input" style="padding: 6px 10px; font-size:12px;" [(ngModel)]="newPlanFuelLimit" min="1" [disabled]="isDrawingRoute" />
+            <label style="font-size: 10px; color: var(--color-text-secondary); margin-bottom: 2px; display: block;">Fuel
+              Limit (Lit)</label>
+            <input type="number" class="form-input" style="padding: 6px 10px; font-size:12px;"
+              [(ngModel)]="newPlanFuelLimit" min="1" [disabled]="isDrawingRoute" />
           </div>
           <div style="flex: 1;">
-            <label style="font-size: 10px; color: var(--color-text-secondary); margin-bottom: 2px; display: block;">Burn (Lit/Min)</label>
-            <input type="number" class="form-input" style="padding: 6px 10px; font-size:12px;" [(ngModel)]="newPlanFuelConsumption" min="0.1" step="0.1" [disabled]="isDrawingRoute" />
+            <label style="font-size: 10px; color: var(--color-text-secondary); margin-bottom: 2px; display: block;">Burn
+              (Lit/Min)</label>
+            <input type="number" class="form-input" style="padding: 6px 10px; font-size:12px;"
+              [(ngModel)]="newPlanFuelConsumption" min="0.1" step="0.1" [disabled]="isDrawingRoute" />
           </div>
         </div>
 
         <div style="margin-top: 4px;">
-          <ng-container *ngIf="!isDrawingRoute">
-            <button class="btn btn-primary" style="width: 100%; padding: 6px 12px; font-size: 12px;" (click)="startDrawing()">
-              <svg lucideMapPin style="width: 14px; height: 14px;"></svg>
-              Route (Plot on Map)
-            </button>
+          <!-- Creation Mode -->
+          <ng-container *ngIf="!editingPlanId">
+            <ng-container *ngIf="!isDrawingRoute">
+              <button class="btn btn-primary" style="width: 100%; padding: 6px 12px; font-size: 12px;"
+                (click)="startDrawing()">
+                <svg lucideMapPin style="width: 14px; height: 14px;"></svg>
+                Route (Plot on Map)
+              </button>
+            </ng-container>
+
+            <ng-container *ngIf="isDrawingRoute">
+              <div style="display: flex; gap: 6px;">
+                <button class="btn btn-secondary" style="flex: 1; padding: 4px 8px; font-size:11px;"
+                  (click)="cancelDrawing()">Cancel</button>
+                <button class="btn btn-success" style="flex: 1.5; padding: 4px 8px; font-size:11px;"
+                  (click)="finishDrawingAndSave()">Save Plan</button>
+              </div>
+            </ng-container>
           </ng-container>
 
-          <ng-container *ngIf="isDrawingRoute">
-            <div style="display: flex; gap: 6px;">
-              <button class="btn btn-secondary" style="flex: 1; padding: 4px 8px; font-size:11px;" (click)="cancelDrawing()">Cancel</button>
-              <button class="btn btn-success" style="flex: 1.5; padding: 4px 8px; font-size:11px;" (click)="finishDrawingAndSave()">Save Plan</button>
+          <!-- Edit Mode -->
+          <ng-container *ngIf="editingPlanId">
+            <div *ngIf="!isDrawingRoute" style="display: flex; flex-direction: column; gap: 6px;">
+              <div style="display: flex; gap: 6px;">
+                <button class="btn btn-primary" style="flex: 1; padding: 6px 12px; font-size: 12px;"
+                  (click)="startReplottingRoute()">
+                  <svg lucideMapPin style="width: 14px; height: 14px;"></svg>
+                  Re-plot Route
+                </button>
+                <button class="btn btn-success" style="flex: 1.2; padding: 6px 12px; font-size: 12px;"
+                  (click)="saveEditedPlan()">
+                  Update Plan
+                </button>
+              </div>
+              <button class="btn btn-secondary" style="width: 100%; padding: 4px 8px; font-size: 11px;"
+                (click)="cancelEditPlan()">
+                Cancel Edit
+              </button>
+            </div>
+
+            <div *ngIf="isDrawingRoute" style="display: flex; gap: 6px;">
+              <button class="btn btn-secondary" style="flex: 1; padding: 4px 8px; font-size:11px;"
+                (click)="cancelReplottingRoute()">Cancel Plot</button>
+              <button class="btn btn-success" style="flex: 1.5; padding: 4px 8px; font-size:11px;"
+                (click)="saveEditedPlan()">Update Plan</button>
             </div>
           </ng-container>
         </div>
       </div>
 
       <!-- Scrollable list of existing plans within the PLAN window -->
-      <div style="flex: 1; overflow-y: auto; margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 10px;">
-        <h4 style="font-size: 11px; font-weight: bold; color: var(--color-text-secondary); margin-bottom: 6px; text-transform: uppercase;">
+      <div
+        style="flex: 1; overflow-y: auto; margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 10px;">
+        <h4
+          style="font-size: 11px; font-weight: bold; color: var(--color-text-secondary); margin-bottom: 6px; text-transform: uppercase;">
           Plans List ({{plansList.length}})
         </h4>
-        
-        <div *ngIf="plansList.length === 0" style="text-align: center; color: var(--color-text-muted); font-size: 11px; padding: 12px 0;">
+
+        <div *ngIf="plansList.length === 0"
+          style="text-align: center; color: var(--color-text-muted); font-size: 11px; padding: 12px 0;">
           No plans plotted. Click above to draw a path.
         </div>
 
-        <div *ngFor="let plan of plansList; trackBy: trackById" class="plan-card">
+        <div *ngFor="let plan of plansList; trackBy: trackById" class="plan-card" [style.border-color]="editingPlanId === plan.id ? 'var(--color-primary)' : ''">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
             <span style="font-weight: 600; font-size: 12px; color: #ffffff;">{{plan.name}}</span>
-            <button style="background: none; border: none; color: var(--color-text-muted); cursor: pointer;" (click)="deletePlan(plan.id, $event)">
-              <svg lucideTrash2 style="width: 13px; height: 13px;"></svg>
-            </button>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <button style="background: none; border: none; color: var(--color-text-muted); cursor: pointer;"
+                (click)="startEditPlan(plan, $event)" title="Edit Plan">
+                <svg lucidePencil style="width: 13px; height: 13px;"></svg>
+              </button>
+              <button style="background: none; border: none; color: var(--color-text-muted); cursor: pointer;"
+                (click)="deletePlan(plan.id, $event)" title="Delete Plan">
+                <svg lucideTrash2 style="width: 13px; height: 13px;"></svg>
+              </button>
+            </div>
           </div>
-          <div style="display: flex; flex-direction: column; font-size: 10px; color: var(--color-text-secondary); font-family: var(--font-mono); gap: 2px;">
+          <div
+            style="display: flex; flex-direction: column; font-size: 10px; color: var(--color-text-secondary); font-family: var(--font-mono); gap: 2px;">
             <div style="display: flex; justify-content: space-between;">
               <span>Speed: {{plan.speed}} kts</span>
               <span>Waypoints: {{plan.waypoints.length}}</span>
@@ -141,38 +214,60 @@
       </div>
     </div>
 
+    <!-- Collapsed PLAN Window -->
+    <div *ngIf="activeTab === 'plan' && isPlanCollapsed" class="glass-panel"
+      style="position: absolute; top: 20px; left: 20px; z-index: 20; padding: 10px 14px; border-radius: 8px; display: flex; align-items: center; gap: 10px; cursor: pointer; background: rgba(11, 15, 25, 0.95); border-color: rgba(59, 130, 246, 0.4); box-shadow: var(--shadow-premium);"
+      (click)="isPlanCollapsed = false" title="Expand Plan">
+      <span style="font-size: 12px; font-weight: bold; color: #ffffff; letter-spacing: 0.5px;">PLAN</span>
+      <svg lucideMaximize2 style="width: 12px; height: 12px; color: var(--color-primary);"></svg>
+    </div>
+
     <!-- Floating DEPLOY Window -->
-    <div *ngIf="!showPlanWindow" class="glass-panel floating-plan-panel" style="z-index: 20;">
-      <h3 style="font-size: 14px; font-weight: 700; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 8px; color: #ffffff; display: flex; align-items: center; justify-content: space-between;">
+    <div *ngIf="activeTab === 'deploy' && !isDeployCollapsed" class="glass-panel floating-plan-panel"
+      style="z-index: 20;">
+      <h3
+        style="font-size: 14px; font-weight: 700; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 8px; color: #ffffff; display: flex; align-items: center; justify-content: space-between;">
         <span>DEPLOY</span>
-        <span style="font-size: 10px; color: var(--color-cyan); font-weight: normal;">(Search Zones)</span>
+        <button (click)="isDeployCollapsed = true"
+          style="background: none; border: none; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; padding: 4px;"
+          title="Collapse">
+          <svg lucideMinimize2 style="width: 14px; height: 14px;"></svg>
+        </button>
       </h3>
 
       <div style="display: flex; flex-direction: column; gap: 8px;">
-        <button class="btn btn-secondary" style="border-color: var(--color-cyan); color: var(--color-cyan); background: rgba(19,28,46,0.95); box-shadow: var(--shadow-premium); width: 100%; padding: 8px 12px; font-size: 12px;" (click)="deployNewEllipse()">
+        <button class="btn btn-secondary"
+          style="border-color: var(--color-cyan); color: var(--color-cyan); background: rgba(19,28,46,0.95); box-shadow: var(--shadow-premium); width: 100%; padding: 8px 12px; font-size: 12px;"
+          (click)="deployNewEllipse()">
           <svg lucideCircle style="width: 14px; height: 14px;"></svg>
           Deploy Search Ellipse
         </button>
       </div>
 
       <!-- Scrollable list of existing ellipses within the DEPLOY window -->
-      <div style="flex: 1; overflow-y: auto; margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 10px;">
-        <h4 style="font-size: 11px; font-weight: bold; color: var(--color-text-secondary); margin-bottom: 6px; text-transform: uppercase;">
+      <div
+        style="flex: 1; overflow-y: auto; margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 10px;">
+        <h4
+          style="font-size: 11px; font-weight: bold; color: var(--color-text-secondary); margin-bottom: 6px; text-transform: uppercase;">
           Search Areas ({{ellipsesList.length}})
         </h4>
-        
-        <div *ngIf="ellipsesList.length === 0" style="text-align: center; color: var(--color-text-muted); font-size: 11px; padding: 12px 0;">
+
+        <div *ngIf="ellipsesList.length === 0"
+          style="text-align: center; color: var(--color-text-muted); font-size: 11px; padding: 12px 0;">
           No search areas deployed. Click above to add one.
         </div>
 
-        <div *ngFor="let ellipse of ellipsesList; trackBy: trackById" class="plan-card" style="border-color: rgba(6, 182, 212, 0.3);">
+        <div *ngFor="let ellipse of ellipsesList; trackBy: trackById" class="plan-card"
+          style="border-color: rgba(6, 182, 212, 0.3);">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
             <span style="font-weight: 600; font-size: 12px; color: var(--color-cyan);">{{ellipse.name}}</span>
-            <button style="background: none; border: none; color: var(--color-text-muted); cursor: pointer;" (click)="deleteEllipse(ellipse.id, $event)">
+            <button style="background: none; border: none; color: var(--color-text-muted); cursor: pointer;"
+              (click)="deleteEllipse(ellipse.id, $event)">
               <svg lucideTrash2 style="width: 13px; height: 13px;"></svg>
             </button>
           </div>
-          <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--color-text-secondary); font-family: var(--font-mono);">
+          <div
+            style="display: flex; justify-content: space-between; font-size: 10px; color: var(--color-text-secondary); font-family: var(--font-mono);">
             <span>Rx: {{ellipse.radiusX.toFixed(1)}}°</span>
             <span>Ry: {{ellipse.radiusY.toFixed(1)}}°</span>
           </div>
@@ -180,120 +275,75 @@
       </div>
     </div>
 
+    <!-- Collapsed DEPLOY Window -->
+    <div *ngIf="activeTab === 'deploy' && isDeployCollapsed" class="glass-panel"
+      style="position: absolute; top: 20px; left: 20px; z-index: 20; padding: 10px 14px; border-radius: 8px; display: flex; align-items: center; gap: 10px; cursor: pointer; background: rgba(11, 15, 25, 0.95); border-color: rgba(6, 182, 212, 0.4); box-shadow: var(--shadow-premium);"
+      (click)="isDeployCollapsed = false" title="Expand Deploy">
+      <span style="font-size: 12px; font-weight: bold; color: #ffffff; letter-spacing: 0.5px;">DEPLOY</span>
+      <svg lucideMaximize2 style="width: 12px; height: 12px; color: var(--color-cyan);"></svg>
+    </div>
+
     <!-- SVG Layer for drawing routes, rendering paths and handles -->
-    <svg #svgElement class="svg-overlay" 
-         [style.pointer-events]="isDrawingRoute ? 'auto' : 'none'"
-         (click)="onMapClick($event)" 
-         (mousemove)="onSvgMouseMove($event)" 
-         (mouseleave)="onSvgMouseLeave()"
-         style="z-index: 10; position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
-      
+    <svg #svgElement class="svg-overlay" [style.pointer-events]="isDrawingRoute ? 'auto' : 'none'"
+      (click)="onMapClick($event)" (mousemove)="onSvgMouseMove($event)" (mouseleave)="onSvgMouseLeave()"
+      style="z-index: 10; position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
+
       <!-- Render active plans routes -->
       <g *ngFor="let plan of plansList; let i = index; trackBy: trackById">
         <!-- Route Polyline -->
-        <polyline 
-          [attr.points]="getRoutePointsString(plan)" 
-          class="route-line" 
-          [attr.stroke]="getColors(i)"
+        <polyline [attr.points]="getRoutePointsString(plan)" class="route-line" [attr.stroke]="getColors(i)"
           stroke-dasharray="8 4">
         </polyline>
 
         <!-- Waypoints circles -->
-        <circle 
-          *ngFor="let wp of plan.waypoints" 
-          [attr.cx]="wp.x" 
-          [attr.cy]="wp.y" 
-          r="4.5" 
-          [attr.fill]="getColors(i)"
-          stroke="#ffffff" 
-          stroke-width="1.5"
-          class="waypoint-circle"
-          style="pointer-events: auto;"
-          (mousemove)="showWaypointTooltip(wp, plan, $event)"
-          (mouseleave)="hideWaypointTooltip()">
+        <circle *ngFor="let wp of plan.waypoints" [attr.cx]="wp.x" [attr.cy]="wp.y" r="4.5" [attr.fill]="getColors(i)"
+          stroke="#ffffff" stroke-width="1.5" class="waypoint-circle" style="pointer-events: auto;"
+          (mousemove)="showWaypointTooltip(wp, plan, $event)" (mouseleave)="hideWaypointTooltip()">
         </circle>
       </g>
 
       <!-- Render temporarily drawing route -->
       <g *ngIf="isDrawingRoute">
-        <polyline 
-          *ngIf="drawingWaypoints.length > 1"
-          [attr.points]="drawingWaypoints.map(w => w.x + ',' + w.y).join(' ')" 
-          class="route-line" 
-          stroke="var(--color-warning)" 
-          stroke-dasharray="4 2">
+        <polyline *ngIf="drawingWaypoints.length > 1"
+          [attr.points]="drawingWaypoints.map(w => w.x + ',' + w.y).join(' ')" class="route-line"
+          stroke="var(--color-warning)" stroke-dasharray="4 2">
         </polyline>
-        <circle 
-          *ngFor="let wp of drawingWaypoints" 
-          [attr.cx]="wp.x" 
-          [attr.cy]="wp.y" 
-          r="5" 
-          fill="var(--color-warning)" 
-          stroke="#ffffff"
-          style="pointer-events: auto;"
+        <circle *ngFor="let wp of drawingWaypoints" [attr.cx]="wp.x" [attr.cy]="wp.y" r="5" fill="var(--color-warning)"
+          stroke="#ffffff" style="pointer-events: auto;"
           (mousemove)="showWaypointTooltip(wp, {name: newPlanName || 'New Plan', speed: newPlanSpeed, startTime: newPlanStartTime, waypoints: drawingWaypoints}, $event)"
           (mouseleave)="hideWaypointTooltip()">
         </circle>
       </g>
 
       <!-- Render Ellipses / Bezier Zones (Only visible in Deploy tab/mode) -->
-      <g *ngIf="!showPlanWindow">
+      <g *ngIf="activeTab === 'deploy'">
         <g *ngFor="let ellipse of ellipsesList; trackBy: trackById" (dblclick)="deleteEllipse(ellipse.id, $event)">
           <!-- Ellipse shape drawn using cubic Bezier curves -->
-          <path 
-            [attr.d]="getEllipseBezierPath(ellipse)" 
-            class="ellipse-path"
-            style="pointer-events: auto;"
-            (mousedown)="startDragEllipse(ellipse, -1, $event)"
-            (mousemove)="showEllipseTooltip(ellipse, $event)"
+          <path [attr.d]="getEllipseBezierPath(ellipse)" class="ellipse-path" style="pointer-events: auto;"
+            (mousedown)="startDragEllipse(ellipse, -1, $event)" (mousemove)="showEllipseTooltip(ellipse, $event)"
             (mouseleave)="hideEllipseTooltip()">
           </path>
 
           <!-- Center point handle -->
-          <circle 
-            [attr.cx]="ellipse.centerX" 
-            [attr.cy]="ellipse.centerY" 
-            r="5.5" 
-            fill="var(--color-cyan)" 
-            stroke="#ffffff"
-            stroke-width="1.5"
-            style="cursor: move; pointer-events: auto;"
+          <circle [attr.cx]="ellipse.centerX" [attr.cy]="ellipse.centerY" r="5.5" fill="var(--color-cyan)"
+            stroke="#ffffff" stroke-width="1.5" style="cursor: move; pointer-events: auto;"
             (mousedown)="startDragEllipse(ellipse, -1, $event)">
           </circle>
 
           <!-- Delete button overlay next to center handle -->
-          <g style="cursor: pointer; pointer-events: auto;" 
-             (click)="deleteEllipse(ellipse.id, $event)" 
-             (mousedown)="$event.stopPropagation()">
-            <circle 
-              [attr.cx]="ellipse.centerX + 15" 
-              [attr.cy]="ellipse.centerY - 15" 
-              r="8" 
-              fill="var(--color-danger)" 
-              stroke="#ffffff" 
-              stroke-width="1">
+          <g style="cursor: pointer; pointer-events: auto;" (click)="deleteEllipse(ellipse.id, $event)"
+            (mousedown)="$event.stopPropagation()">
+            <circle [attr.cx]="ellipse.centerX + 15" [attr.cy]="ellipse.centerY - 15" r="8" fill="var(--color-danger)"
+              stroke="#ffffff" stroke-width="1">
             </circle>
-            <text 
-              [attr.x]="ellipse.centerX + 15" 
-              [attr.y]="ellipse.centerY - 11" 
-              text-anchor="middle" 
-              fill="#ffffff" 
-              font-size="11" 
-              font-weight="bold"
-              style="user-select: none;">×</text>
+            <text [attr.x]="ellipse.centerX + 15" [attr.y]="ellipse.centerY - 11" text-anchor="middle" fill="#ffffff"
+              font-size="11" font-weight="bold" style="user-select: none;">×</text>
           </g>
 
           <!-- Reshaping handles (8 points total) -->
           <ng-container *ngFor="let cp of ellipse.controlPoints; let idx = index">
-            <circle 
-              [attr.cx]="cp.x" 
-              [attr.cy]="cp.y" 
-              r="5" 
-              fill="#ffffff" 
-              stroke="var(--color-cyan)" 
-              stroke-width="2"
-              style="cursor: move; pointer-events: auto;"
-              (mousedown)="startDragEllipse(ellipse, idx, $event)">
+            <circle [attr.cx]="cp.x" [attr.cy]="cp.y" r="5" fill="#ffffff" stroke="var(--color-cyan)" stroke-width="2"
+              style="cursor: move; pointer-events: auto;" (mousedown)="startDragEllipse(ellipse, idx, $event)">
             </circle>
           </ng-container>
         </g>
@@ -302,39 +352,23 @@
       <!-- Render moving symbols -->
       <g *ngFor="let state of symbolStates; let i = index; trackBy: trackByPlanId">
         <!-- Render symbol group if started -->
-        <g *ngIf="state.isStarted" 
-           class="symbol-g"
-           style="pointer-events: auto;"
-           [attr.transform]="'translate(' + state.currentX + ',' + state.currentY + ')'"
-           (mousemove)="showSymbolTooltip(state, $event)"
-           (mouseleave)="hideSymbolTooltip()">
-          
+        <g *ngIf="state.isStarted" class="symbol-g" style="pointer-events: auto;"
+          [attr.transform]="'translate(' + state.currentX + ',' + state.currentY + ')'"
+          (mousemove)="showSymbolTooltip(state, $event)" (mouseleave)="hideSymbolTooltip()">
+
           <!-- Outer Radar pulse ring -->
-          <circle 
-            r="12" 
-            fill="none" 
-            [attr.stroke]="getColors(i)" 
-            stroke-width="1.5" 
-            opacity="0.8">
+          <circle r="12" fill="none" [attr.stroke]="getColors(i)" stroke-width="1.5" opacity="0.8">
             <animate attributeName="r" values="8;16;8" dur="2s" repeatCount="indefinite" />
             <animate attributeName="opacity" values="0.8;0.2;0.8" dur="2s" repeatCount="indefinite" />
           </circle>
 
           <!-- Core Dot -->
-          <circle 
-            r="6" 
-            [attr.fill]="state.isOutofFuel ? 'var(--color-danger)' : getColors(i)" 
-            stroke="#ffffff" 
+          <circle r="6" [attr.fill]="state.isOutofFuel ? 'var(--color-danger)' : getColors(i)" stroke="#ffffff"
             stroke-width="1.5">
           </circle>
 
           <!-- Floating Badge with asset name -->
-          <text 
-            y="-14" 
-            text-anchor="middle" 
-            fill="#ffffff" 
-            font-size="9" 
-            font-weight="bold" 
+          <text y="-14" text-anchor="middle" fill="#ffffff" font-size="9" font-weight="bold"
             style="paint-order: stroke; stroke: #0b0f19; stroke-width: 3px; font-family: var(--font-sans);">
             {{state.planName}}
           </text>
@@ -343,38 +377,65 @@
     </svg>
 
     <!-- Floating O/P CHARTS Windows (visible under Charts tab) -->
-    <div *ngIf="activeTab === 'charts'" 
-         style="position: absolute; bottom: 20px; right: 20px; width: 380px; height: calc(100% - 40px); max-height: 480px; display: flex; flex-direction: column; z-index: 20;">
-      
+    <div *ngIf="activeTab === 'charts' && !isChartsCollapsed"
+      style="position: absolute; bottom: 20px; right: 20px; width: 380px; height: calc(100% - 40px); max-height: 480px; display: flex; flex-direction: column; z-index: 20;">
+
       <!-- Charts Comparison Panel -->
-      <div class="glass-panel" style="padding: 12px; display: flex; flex-direction: column; flex: 1; gap: 10px; overflow-y: auto;">
-        <h3 style="font-size: 13px; font-weight: 700; border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 4px; color: #ffffff;">
-          📈 Charts Comparison (All Plans)
+      <div class="glass-panel"
+        style="padding: 12px; display: flex; flex-direction: column; flex: 1; gap: 10px; overflow-y: auto;">
+        <h3
+          style="font-size: 13px; font-weight: 700; border-bottom: 1px solid var(--border-color); padding-bottom: 6px; margin-bottom: 4px; color: #ffffff; display: flex; align-items: center; justify-content: space-between;">
+          <span>📈 Charts Comparison (All Plans)</span>
+          <button (click)="isChartsCollapsed = true"
+            style="background: none; border: none; color: var(--color-text-secondary); cursor: pointer; display: flex; align-items: center; padding: 4px;"
+            title="Collapse">
+            <svg lucideMinimize2 style="width: 14px; height: 14px;"></svg>
+          </button>
         </h3>
 
         <!-- Fuel chart -->
-        <div class="mini-chart-card" style="background: rgba(11, 15, 25, 0.6); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px; flex: 1; display: flex; flex-direction: column; min-height: 140px; height: 140px;">
-          <div style="font-size: 10px; font-weight: bold; color: var(--color-text-secondary); margin-bottom: 4px;">FUEL DEPLETION RATE</div>
+        <div class="mini-chart-card"
+          style="background: rgba(11, 15, 25, 0.6); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px; flex: 1; display: flex; flex-direction: column; min-height: 140px; height: 140px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; font-size: 10px; font-weight: bold; color: var(--color-text-secondary); margin-bottom: 4px; user-select: none;">
+            <span>FUEL DEPLETION RATE</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <button (click)="prevFuelChart()" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 4px; color: #ffffff; cursor: pointer; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 10px;" title="Previous Plan">
+                &lt;
+              </button>
+              <span style="color: var(--color-cyan); font-size: 8.5px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; max-width: 90px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                {{ currentFuelChartIndex === -1 ? 'All Plans' : plansList[currentFuelChartIndex]?.name }}
+              </span>
+              <button (click)="nextFuelChart()" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); border-radius: 4px; color: #ffffff; cursor: pointer; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 10px;" title="Next Plan">
+                &gt;
+              </button>
+            </div>
+          </div>
           <div style="position: relative; flex: 1; width: 100%; height: 100%;">
             <canvas #fuelChartCanvas></canvas>
           </div>
         </div>
 
         <!-- Live Remaining Fuel List -->
-        <div style="background: rgba(11, 15, 25, 0.5); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 12px;">
-          <div style="font-size: 9px; font-weight: 800; color: var(--color-text-secondary); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">
+        <div
+          style="background: rgba(11, 15, 25, 0.5); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 12px;">
+          <div
+            style="font-size: 9px; font-weight: 800; color: var(--color-text-secondary); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">
             ⛽ Live Remaining Fuel
           </div>
           <div style="display: flex; flex-direction: column; gap: 4px; max-height: 80px; overflow-y: auto;">
-            <div *ngFor="let state of symbolStates; let i = index; trackBy: trackByPlanId" 
-                 style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-family: var(--font-mono); border-bottom: 1px solid rgba(255,255,255,0.02); padding-bottom: 2px;">
+            <div *ngFor="let state of symbolStates; let i = index; trackBy: trackByPlanId"
+              style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-family: var(--font-mono); border-bottom: 1px solid rgba(255,255,255,0.02); padding-bottom: 2px;">
               <span [style.color]="getColors(i)" style="font-weight: 600;">{{state.planName}}</span>
               <span style="font-weight: bold;">
-                <span *ngIf="!state.isStarted" style="color: var(--color-text-muted);">{{state.fuelLimit}} L (Pending)</span>
-                <span *ngIf="state.isStarted" [style.color]="state.isOutofFuel ? 'var(--color-danger)' : 'var(--color-success)'">
-                   {{state.fuelRemaining}} L
-                  <span *ngIf="state.isOutofFuel" style="font-size: 8px; color: var(--color-danger); font-weight: normal;">(Empty)</span>
-                  <span *ngIf="state.isFinished" style="font-size: 8px; color: var(--color-success); font-weight: normal;">(Arrived)</span>
+                <span *ngIf="!state.isStarted" style="color: var(--color-text-muted);">{{state.fuelLimit}} L
+                  (Pending)</span>
+                <span *ngIf="state.isStarted"
+                  [style.color]="state.isOutofFuel ? 'var(--color-danger)' : 'var(--color-success)'">
+                  {{state.fuelRemaining}} L
+                  <span *ngIf="state.isOutofFuel"
+                    style="font-size: 8px; color: var(--color-danger); font-weight: normal;">(Empty)</span>
+                  <span *ngIf="state.isFinished"
+                    style="font-size: 8px; color: var(--color-success); font-weight: normal;">(Arrived)</span>
                 </span>
               </span>
             </div>
@@ -382,13 +443,23 @@
         </div>
 
         <!-- Distance chart -->
-        <div class="mini-chart-card" style="background: rgba(11, 15, 25, 0.6); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px; flex: 1; display: flex; flex-direction: column; min-height: 140px; height: 140px;">
-          <div style="font-size: 10px; font-weight: bold; color: var(--color-text-secondary); margin-bottom: 4px;">DISTANCE COMPARISON</div>
+        <div class="mini-chart-card"
+          style="background: rgba(11, 15, 25, 0.6); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px; flex: 1; display: flex; flex-direction: column; min-height: 140px; height: 140px;">
+          <div style="font-size: 10px; font-weight: bold; color: var(--color-text-secondary); margin-bottom: 4px;">
+            DISTANCE COMPARISON</div>
           <div style="position: relative; flex: 1; width: 100%; height: 100%;">
             <canvas #distanceChartCanvas></canvas>
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Collapsed CHARTS Window -->
+    <div *ngIf="activeTab === 'charts' && isChartsCollapsed" class="glass-panel"
+      style="position: absolute; bottom: 20px; right: 20px; z-index: 20; padding: 10px 14px; border-radius: 8px; display: flex; align-items: center; gap: 10px; cursor: pointer; background: rgba(11, 15, 25, 0.95); border-color: rgba(168, 85, 247, 0.4); box-shadow: var(--shadow-premium);"
+      (click)="isChartsCollapsed = false" title="Expand Charts">
+      <span style="font-size: 12px; font-weight: bold; color: #ffffff; letter-spacing: 0.5px;">CHARTS</span>
+      <svg lucideMaximize2 style="width: 12px; height: 12px; color: var(--color-primary);"></svg>
     </div>
   </div>
 </div>
