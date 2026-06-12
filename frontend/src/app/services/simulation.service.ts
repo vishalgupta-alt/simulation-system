@@ -249,17 +249,9 @@ export class SimulationService {
       const elapsedRealMs = now - this.lastTickTime;
       this.lastTickTime = now;
 
-      if (this.isTimeBasedSubject.value) {
-        // Continuous time progression scaled by speed multiplier
-        const elapsedSimSeconds = (elapsedRealMs / 1000) * this.playbackSpeedSubject.value;
-        this.setCurrentTimeOffset(this.getCurrentTimeOffset() + elapsedSimSeconds);
-      } else {
-        // In event-based mode, standard playback auto-advances to the next event every 1.5 seconds of real-time
-        if (elapsedRealMs >= 1500) {
-          this.stepForward();
-          this.lastTickTime = now;
-        }
-      }
+      // Both event-based and time-based modes play continuously scaled by speed multiplier
+      const elapsedSimSeconds = (elapsedRealMs / 1000) * this.playbackSpeedSubject.value;
+      this.setCurrentTimeOffset(this.getCurrentTimeOffset() + elapsedSimSeconds);
     }, 100);
   }
 
